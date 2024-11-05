@@ -6,7 +6,11 @@ import "core:os"
 
 App_State :: struct {
 	current_player: u8,
-	// board: 
+	board: [9][9]^Piece,
+
+	p1pieces: [9]Piece,
+	p2pieces: [9]Piece,
+
 	p1dice: [6]int,
 	p2dice: [6]int,
 
@@ -47,14 +51,63 @@ get_next_dice_throw :: proc(state: ^App_State) -> int {
 	return -1;
 }
 
+add_pieces :: proc(state: ^App_State, playerid: int) {
+	if playerid == 0 {
+		for i in 0..<9 {
+			piece := init_piece(.QUEEN, playerid, {i, 0}, i);
+			state.p1pieces[i] = piece;
+			state.board[0][i] = &state.p1pieces[i];
+		}
+	} else {
+		for i in 0..<9 {
+			piece := init_piece(.PAWN, playerid, {i, 8}, i);
+			state.p2pieces[i] = piece;
+			state.board[8][i] = &state.p2pieces[i];
+		}
+	}
+}
+
+print_board :: proc(state: App_State) {
+	fmt.println() // separate for clarity
+	for col in state.board {
+		for tile in col {
+			// #partial switch (tile) {
+			// 	case nil:
+			// 	case 
+			// }
+			fmt.print("|");
+			if tile == nil {
+				fmt.print("     ");
+			} else {
+				fmt.print(get_piece_icon(tile^))
+			}
+		}
+		fmt.println("|")
+		// fmt.println("")
+		for i in 0..<(5 * 9 + 10) {
+			fmt.print("-")
+		}
+		fmt.println()
+	}
+	fmt.println()
+}
+
 main :: proc() {
 	// initialize game
 
 	state: App_State;
 	init_app_state(&state);
 
-	// fmt.println(state.p1dice);
-	// fmt.println(state.p2dice);
+	add_pieces(&state, 0);
+	add_pieces(&state, 1);
+
+	// fmt.println(state.p1pieces);
+
+	print_board(state);
+
+	fmt.println(get_available_moves(state, state.p1pieces[4], 2));
+
+	if true do return;
 
 	for i in 0..<24{
 		// get input
