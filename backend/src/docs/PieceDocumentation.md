@@ -147,6 +147,28 @@
 > - The Warrioress will have 1 HP after respawning
 > - The Warrioress can't use this ability if the King is dead
 
+## Sniper
+
+> - Average HP, High DMG, Low mobility
+> - HP: __6__
+> - DMG: __15__
+>
+> ### Movement
+>
+> - __Move__: Only on rows
+> - __Attack__: Only on columns
+>
+> ### Ability
+>
+> __"Piercing Shot"__
+>
+> - Can attack collinear pieces in a straight line
+> - Requirements:
+>  - Roll Cost: 6
+> - Extra:
+> - The first piece hit will die, the rest will take high dmg
+> - Will damage friendly pieces as well
+> - Will not move the Sniper
 
 # ChatGPT suggestions
 

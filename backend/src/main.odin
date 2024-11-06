@@ -4,9 +4,26 @@ import "core:fmt"
 import "core:math/rand"
 import "core:os"
 
+import "core:thread"
+import "core:net"
+import "core:sync"
+
+Player :: struct {
+	connected: bool,
+	id: i64,
+	name: string,
+	color: [3]u8,
+}
+
 App_State :: struct {
+	mutex: sync.Mutex,
+	accepting_connection: sync.Mutex,
+
 	current_player: u8,
 	board: [9][9]^Piece,
+
+	p1: Player,
+	p2: Player,
 
 	p1pieces: [9]Piece,
 	p2pieces: [9]Piece,
@@ -67,6 +84,19 @@ add_pieces :: proc(state: ^App_State, playerid: int) {
 	}
 }
 
+set_player_data :: proc(state: ^App_State, player: Player) {
+	// sync.lock(&state.mutex);
+    defer sync.unlock(&state.accepting_connection);
+
+	if !state.p1.connected {
+		state.p1 = player;
+		state.p1.connected = true;
+	} else if !state.p2.connected {
+		state.p2 = player;
+		state.p2.connected = true;
+	}
+}
+
 print_board :: proc(state: App_State) {
 	fmt.println() // separate for clarity
 	for col in state.board {
@@ -77,7 +107,7 @@ print_board :: proc(state: App_State) {
 			// }
 			fmt.print("|");
 			if tile == nil {
-				fmt.print("     ");
+				fmt.print("	 ");
 			} else {
 				fmt.print(get_piece_icon(tile^))
 			}
@@ -92,22 +122,50 @@ print_board :: proc(state: App_State) {
 	fmt.println()
 }
 
+all_players_initialized :: proc(state: App_State) -> bool {
+	return state.p1.connected && state.p2.connected;
+}
+
+ENDPOINT := net.Endpoint{address = net.IP4_Address{0, 0, 0, 0}, port = 4000};
+
+// odin run ./backend/src -out:main.exe
 main :: proc() {
 	// initialize game
 
 	state: App_State;
 	init_app_state(&state);
 
+	listener, err := net.listen_tcp(ENDPOINT);
+	if err != nil{
+		fmt.println("Error at lisetner start", err);
+		panic("");
+	}
+
+	for {
+		sync.lock(&state.accepting_connection);
+		if all_players_initialized(state) {
+			break;
+		}
+		client_socket, endpoint, err := net.accept_tcp(listener);
+		if err != nil{
+			fmt.println("Error at accepting clients", err);
+			panic("");
+		}
+		fmt.println("Got connection: ", endpoint);
+		
+		scd := new(Server_Client_Data);
+		scd.socket = client_socket;
+		scd.state = &state;
+		thread.create_and_start_with_data(scd, handle_client_connection);
+
+	}
+
 	add_pieces(&state, 0);
 	add_pieces(&state, 1);
 
-	// fmt.println(state.p1pieces);
 
 	print_board(state);
 
-	fmt.println(get_available_moves(state, state.p1pieces[4], 2));
-
-	if true do return;
 
 	for i in 0..<24{
 		// get input
@@ -129,3 +187,4 @@ main :: proc() {
 		// broadcast changes
 	}
 }
+
