@@ -91,9 +91,11 @@ set_player_data :: proc(state: ^App_State, player: Player) {
 	if !state.p1.connected {
 		state.p1 = player;
 		state.p1.connected = true;
+		fmt.println(state.p1);
 	} else if !state.p2.connected {
 		state.p2 = player;
 		state.p2.connected = true;
+		fmt.println(state.p2);
 	}
 }
 

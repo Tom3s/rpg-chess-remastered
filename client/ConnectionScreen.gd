@@ -61,19 +61,25 @@ func connect_pressed() -> void:
 			print(peer.get_status())
 		
 		#peer.put_data("Hello from godot".to_ascii_buffer())
-		var player_name := "mogyoro"
+		var names: PackedStringArray = [
+			"mogyoro",
+			"lekvar",
+			"aztapicsakurvamindensegit",
+		]
+		var player_name := names[randi() % names.size()]
 		var player_data := PackedByteArray()
-		player_data.resize(13)
+		player_data.resize(14)
 		player_data.encode_u8(0, PACKET_TYPE.PLAYER_JOIN)
-		player_data.encode_s64(1, 34673)
-		player_data.encode_u8(9, 110)
-		player_data.encode_u8(10, 230)
-		player_data.encode_u8(11, 78)
+		player_data.encode_u8(1, 12 + player_name.length())
+		player_data.encode_s64(2, 34673)
+		player_data.encode_u8(10, 110)
+		player_data.encode_u8(11, 230)
+		player_data.encode_u8(12, 78)
 		
-		player_data.encode_u8(12, player_name.length())
+		player_data.encode_u8(13, player_name.length())
 		#player_data.encode_var(13, player_name)
 		player_data.append_array(player_name.to_ascii_buffer())
-		player_data.resize(256)
+		#player_data.resize(256)
 		
 		peer.put_data(player_data)
 		
