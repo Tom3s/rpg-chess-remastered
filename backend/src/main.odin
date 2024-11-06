@@ -69,19 +69,19 @@ get_next_dice_throw :: proc(state: ^App_State) -> int {
 }
 
 add_pieces :: proc(state: ^App_State, playerid: int) {
-	if playerid == 0 {
-		for i in 0..<9 {
-			piece := init_piece(.QUEEN, playerid, {i, 0}, i);
-			state.p1pieces[i] = piece;
-			state.board[0][i] = &state.p1pieces[i];
-		}
-	} else {
-		for i in 0..<9 {
-			piece := init_piece(.PAWN, playerid, {i, 8}, i);
-			state.p2pieces[i] = piece;
-			state.board[8][i] = &state.p2pieces[i];
-		}
-	}
+	// if playerid == 0 {
+	// 	for i in 0..<9 {
+	// 		piece := init_piece(.QUEEN, playerid, {i, 0}, i);
+	// 		state.p1pieces[i] = piece;
+	// 		state.board[0][i] = &state.p1pieces[i];
+	// 	}
+	// } else {
+	// 	for i in 0..<9 {
+	// 		piece := init_piece(.PAWN, playerid, {i, 8}, i);
+	// 		state.p2pieces[i] = piece;
+	// 		state.board[8][i] = &state.p2pieces[i];
+	// 	}
+	// }
 }
 
 set_player_data :: proc(state: ^App_State, player: Player) {

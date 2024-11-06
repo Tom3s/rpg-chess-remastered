@@ -13,7 +13,7 @@ PIECE_TYPE :: enum {
 
 Piece :: struct {
 	id: int,
-	owner: int,
+	owner: i64,
 
 	position: v2i,
 
@@ -40,7 +40,7 @@ Action :: struct {
 	cost: int,
 }
 
-init_piece :: proc(type: PIECE_TYPE, owner: int, position: v2i = {0, 0}, id: int = 0) -> Piece {
+init_piece :: proc(type: PIECE_TYPE, owner: i64, position: v2i = {0, 0}, id: int = 0) -> Piece {
 	piece: Piece;
 
 	piece.owner = owner;
