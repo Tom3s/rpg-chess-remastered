@@ -10,14 +10,7 @@ enum PACKET_TYPE {
 	INITIAL_SETUP,
 }
 
-enum PIECE_TYPE {
-	PAWN, 
-	BISHOP,
-	ROOK,
-	KNIGHT,
-	QUEEN,
-	# KING, # might change later
-}
+
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
@@ -105,12 +98,12 @@ func say_pressed() -> void:
 		init_setup_data.encode_u8(1, 8 + 12 * 3)
 		init_setup_data.encode_s64(2, 34673)
 		for i in 9:
-			init_setup_data.encode_u8(10 + i * 3, PIECE_TYPE.PAWN);
+			init_setup_data.encode_u8(10 + i * 3, GlobalNames.PIECE_TYPE.PAWN);
 			init_setup_data.encode_u8(10 + i * 3 + 1, i);
 			init_setup_data.encode_u8(10 + i * 3 + 2, 0);
 		
 		for i in range(9, 12):
-			init_setup_data.encode_u8(10 + i * 3, PIECE_TYPE.BISHOP);
+			init_setup_data.encode_u8(10 + i * 3, GlobalNames.PIECE_TYPE.BISHOP);
 			init_setup_data.encode_u8(10 + i * 3 + 1, i - 9);
 			init_setup_data.encode_u8(10 + i * 3 + 2, 1);
 		
