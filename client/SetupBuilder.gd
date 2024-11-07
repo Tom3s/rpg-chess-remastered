@@ -11,6 +11,7 @@ class_name SetupBuilder
 @onready var pieceButtons: VBoxContainer = %PieceButtons
 @onready var placedPiecesLabel: Label = %PlacedPiecesLabel
 @onready var resetButton: Button = %ResetButton
+@onready var randomButton: Button = %RandomButton
 @onready var readyButton: Button = %ReadyButton
 
 @onready var pieces: Node2D = %Pieces
@@ -66,6 +67,7 @@ func _ready() -> void:
 		)
 
 	resetButton.pressed.connect(resetBoard)
+	randomButton.pressed.connect(randomizeBoard)
 
 	readyButton.pressed.connect(playerReady)
 
@@ -165,5 +167,42 @@ func resetBoard() -> void:
 	
 	available = GlobalNames.NR_PIECES
 
+func randomizeBoard() -> void:
+	resetBoard()
+
+	var tiles: Array[Vector2i]
+	for i in GlobalNames.BOARD_SIZE:
+		tiles.push_back(Vector2i(i, 0))
+		tiles.push_back(Vector2i(i, 1))
+	
+	var pieceTypes: Array[GlobalNames.PIECE_TYPE]
+	for b in pieceButtons.get_children():
+		var button: PieceSelectorButton = b 
+		for i in button.available:
+			pieceTypes.push_back(button.pieceType)
+	
+	for i in GlobalNames.NR_PIECES:
+		var tile: Vector2i = tiles.pick_random()
+		tiles.erase(tile)
+
+		var type: GlobalNames.PIECE_TYPE = pieceTypes.pick_random()
+		pieceTypes.erase(type)
+
+		var piece: Piece = pieceScene.instantiate()
+		pieces.add_child(piece)
+		piece.positionOnBoard = tile
+		piece.global_position = board.indexToPosition(tile)
+		piece.pieceType = type
+		pieceButtons.get_child(type).available -= 1
+	
+	# transparentPreview.visible = false
+	selectedPiece = GlobalNames.PIECE_TYPE.NONE
+
+
+	available = 0
+
+
 func playerReady() -> void:
 	Network.send_inital_setup_packet(pieces)
+
+	Network.receive_packet()

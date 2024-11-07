@@ -12,6 +12,7 @@ enum PIECE_TYPE {
 }
 
 const NR_PIECES := 14
+const BOARD_SIZE := 9
 
 var pieceTextures := [
 	preload("res://Assets/Pawn_icon.png"),

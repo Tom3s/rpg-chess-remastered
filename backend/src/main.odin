@@ -9,6 +9,9 @@ import "core:thread"
 import "core:net"
 import "core:sync"
 
+// import "core:time"
+
+
 Player :: struct {
 	connected: bool,
 	id: i64,
@@ -16,6 +19,8 @@ Player :: struct {
 	color: [3]u8,
 
 	ready: bool,
+
+	socket: net.TCP_Socket,
 }
 
 NR_PIECES :: 14;
@@ -24,6 +29,10 @@ BOARD_SIZE :: 9;
 App_State :: struct {
 	mutex: sync.Mutex,
 	accepting_connection: sync.Mutex,
+
+	p1requests: Outbound_Packet_Queue,
+	p2requests: Outbound_Packet_Queue,
+	
 
 	current_player: u8,
 	board: [BOARD_SIZE][BOARD_SIZE]^Piece,
@@ -48,6 +57,9 @@ reset_dice :: proc(dice: ^[6]int) {
 init_app_state :: proc(state: ^App_State) {
 	reset_dice(&state.p1dice);
 	reset_dice(&state.p2dice);
+
+	state.p1requests = make_out_packet_queue();
+	state.p2requests = make_out_packet_queue();
 }
 
 get_next_dice_throw :: proc(state: ^App_State) -> int {
@@ -185,8 +197,22 @@ main :: proc() {
 		scd := new(Server_Client_Data);
 		scd.socket = client_socket;
 		scd.state = &state;
-		thread.create_and_start_with_data(scd, handle_client_connection);
+		thread.create_and_start_with_data(scd, handle_incoming_packets);
+		// thread.create_and_start_with_data(scd, handle_outgoing_packets);
 	}
+
+	scd1 := new(Server_Client_Data);
+	scd1.player_id = state.p1.id;
+	scd1.state = &state;
+	thread.create_and_start_with_data(scd1, handle_outgoing_packets);
+
+	scd2 := new(Server_Client_Data);
+	scd2.player_id = state.p2.id;
+	scd2.state = &state;
+	thread.create_and_start_with_data(scd2, handle_outgoing_packets);
+
+
+
 
 	for {
 		sync.lock(&state.mutex);
@@ -195,13 +221,21 @@ main :: proc() {
 		if all_players_ready(state) do break;
 	}
 
-	// add_pieces(&state, 0);
-	// add_pieces(&state, 1);
-
-
 	print_board(state);
 
+	out_packet_queue_push(&state.p1requests, {
+		type = .INIT_BOARD_STATE,
+		data = nil,
+	})
+	out_packet_queue_push(&state.p2requests, {
+		type = .INIT_BOARD_STATE,
+		data = nil,
+	})
 
+	// time.sleep(cast(time.Duration) seconds_to_sleep * time.Second);
+	for {
+		
+	}
 	// for i in 0..<24{
 	// 	// get input
 

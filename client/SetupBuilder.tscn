@@ -194,6 +194,12 @@ layout_mode = 2
 focus_mode = 0
 text = "Reset Board"
 
+[node name="RandomButton" type="Button" parent="CanvasLayer/HBoxContainer/PanelContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+focus_mode = 0
+text = "Randomize"
+
 [node name="ReadyButton" type="Button" parent="CanvasLayer/HBoxContainer/PanelContainer/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2

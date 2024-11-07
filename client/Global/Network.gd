@@ -16,6 +16,7 @@ enum PACKET_TYPE {
 	EXIT,
 	PLAYER_JOIN,
 	INITIAL_SETUP,
+	INIT_BOARD_STATE,
 }
 
 var socket: StreamPeerTCP = null
@@ -135,6 +136,18 @@ func send_inital_setup_packet(pieceParent: Node2D) -> void:
 
 		i += 1
 	
-	print(init_setup_data)
+	# print(init_setup_data)
 
 	socket.put_data(init_setup_data)
+
+func receive_packet() -> void:
+	var header: PackedByteArray = socket.get_data(2)
+
+	var packet_type: PACKET_TYPE = header[0] as PACKET_TYPE
+	var packet_len: int = header[1]
+
+	print("[Network.gd] Received ", PACKET_TYPE.keys()[packet_type], " packet (", packet_len, " bytes)")
+
+	var data: PackedByteArray = socket.get_data(packet_len)
+
+	print(data)
