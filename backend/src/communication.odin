@@ -177,9 +177,12 @@ handle_outgoing_packets :: proc(client_data: rawptr) {
 		}
 
 		packet := out_packet_queue_pop(request_queue);
-		// fmt.println(packet);
+		sync.lock(&test_mutex);
+		fmt.println(packet);
 		packet_data: []byte = encode_packet(state, packet);
 		// fmt.println(packet_data);
+		fmt.println(packet_data);
+		sync.unlock(&test_mutex);
 
 
 		_, err := net.send_tcp(socket, packet_data[:]);
@@ -259,37 +262,45 @@ test_mutex: sync.Mutex;
 
 encode_init_board_state :: proc(state: ^App_State) -> []byte {
 	// packet_data: [16 + NR_PIECES * 3 * 2 + 2]byte;
-	packet_data: []byte = make([]byte, 16 + NR_PIECES * 3 * 2 + 2 + 100);
+	// packet_data: []byte = make([]byte, 16 + NR_PIECES * 3 * 2 + 2 + 100);
+	packet_data := make([dynamic]byte, 2);
 
 	// header
 	packet_data[0] = cast(byte) PACKET_TYPE.INIT_BOARD_STATE;
-	packet_data[1] = cast(byte) len(packet_data) - 2;
+	// packet_data[1] = cast(byte) len(packet_data) - 2;
 
-	copy_slice(packet_data[2:2+8], bytes_of(&state.p1.id));
+	// copy_slice(packet_data[2:2+8], bytes_of(&state.p1.id));
+	append_elems(&packet_data, ..bytes_of(&state.p1.id))
 
 	offset := 2 + 8 + 1;
 	for &piece in state.p1pieces {
 		defer offset += 3;
-		packet_data[offset] = cast(u8) piece.type;
-		packet_data[offset + 1] = cast(u8) piece.position.x;
-		packet_data[offset + 2] = cast(u8) piece.position.y;
+		// packet_data[offset] = cast(u8) piece.type;
+		// packet_data[offset + 1] = cast(u8) piece.position.x;
+		// packet_data[offset + 2] = cast(u8) piece.position.y;
+		append(&packet_data, cast(u8) piece.type)
+		append(&packet_data, cast(u8) piece.position.x)
+		append(&packet_data, cast(u8) piece.position.y)
 	}
 	
-	copy_slice(packet_data[offset:offset+8], bytes_of(&state.p2.id));
+	// copy_slice(packet_data[offset:offset+8], bytes_of(&state.p2.id));
+	append_elems(&packet_data, ..bytes_of(&state.p2.id))
+
 
 	offset += 8 + 1;
 	for &piece in state.p2pieces {
 		defer offset += 3;
-		packet_data[offset] = cast(u8) piece.type;
-		packet_data[offset + 1] = cast(u8) piece.position.x;
-		packet_data[offset + 2] = cast(u8) piece.position.y;
+		// packet_data[offset] = cast(u8) piece.type;
+		// packet_data[offset + 1] = cast(u8) piece.position.x;
+		// packet_data[offset + 2] = cast(u8) piece.position.y;
+		append(&packet_data, cast(u8) piece.type)
+		append(&packet_data, cast(u8) piece.position.x)
+		append(&packet_data, cast(u8) piece.position.y)
 	}
 
-	sync.lock(&test_mutex);
-	fmt.println(packet_data);
-	sync.unlock(&test_mutex);
+	packet_data[1] = cast(byte) len(packet_data) - 2;
 
-	return packet_data;
+	return slice.reinterpret([]byte, packet_data[:]);
 }
 
 
