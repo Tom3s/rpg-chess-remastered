@@ -54,7 +54,7 @@ Extra:
 focus_mode = 0
 toggle_mode = true
 keep_pressed_outside = true
-text = "Pawn: 8"
+text = "Pawn: 8/1"
 icon = ExtResource("2_m0l4s")
 icon_alignment = 1
 vertical_icon_alignment = 0
@@ -84,7 +84,7 @@ Extra:
 focus_mode = 0
 toggle_mode = true
 keep_pressed_outside = true
-text = "Bishop: 1"
+text = "Bishop: 3/1"
 icon = ExtResource("2_m0l4s")
 icon_alignment = 1
 vertical_icon_alignment = 0
@@ -114,7 +114,7 @@ Extra:
 focus_mode = 0
 toggle_mode = true
 keep_pressed_outside = true
-text = "Rook: 1"
+text = "Rook: 3/1"
 icon = ExtResource("2_m0l4s")
 icon_alignment = 1
 vertical_icon_alignment = 0
@@ -144,7 +144,7 @@ Extra:
 focus_mode = 0
 toggle_mode = true
 keep_pressed_outside = true
-text = "Knight: 1"
+text = "Knight: 2/1"
 icon = ExtResource("2_m0l4s")
 icon_alignment = 1
 vertical_icon_alignment = 0
@@ -174,7 +174,7 @@ Extra:
 focus_mode = 0
 toggle_mode = true
 keep_pressed_outside = true
-text = "Queen: 1"
+text = "None: 1/1"
 icon = ExtResource("2_m0l4s")
 icon_alignment = 1
 vertical_icon_alignment = 0
