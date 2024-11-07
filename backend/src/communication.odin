@@ -177,13 +177,7 @@ handle_outgoing_packets :: proc(client_data: rawptr) {
 		}
 
 		packet := out_packet_queue_pop(request_queue);
-		sync.lock(&test_mutex);
-		fmt.println(packet);
 		packet_data: []byte = encode_packet(state, packet);
-		// fmt.println(packet_data);
-		fmt.println(packet_data);
-		sync.unlock(&test_mutex);
-
 
 		_, err := net.send_tcp(socket, packet_data[:]);
 		
@@ -257,8 +251,6 @@ encode_packet :: proc(state: ^App_State, packet: Outbound_Packet) -> []byte{
 	}
 	panic("Illegal state")
 }
-
-test_mutex: sync.Mutex;
 
 encode_init_board_state :: proc(state: ^App_State) -> []byte {
 	// TODO: i have some wrong indexings
