@@ -142,8 +142,14 @@ func send_inital_setup_packet(pieceParent: Node2D) -> void:
 
 func receive_packet() -> void:
 	var result: Array = socket.get_data(2)
+	
 	var _error: Error = result[0]
 	var header: PackedByteArray = result[1]
+	# this is fucking stupid
+	# if you cast this result array to ByteArray, you get [0, 0]
+	# Also there is no nice way to unpack multiple return values
+	# this is a bad solution from godot's part
+	# i know it's explained in the docs, but it wasn't clear until i printed the generic Array
 
 	var packet_type: PACKET_TYPE = header[0] as PACKET_TYPE
 	var packet_len: int = header[1]

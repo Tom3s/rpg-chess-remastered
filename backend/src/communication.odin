@@ -261,6 +261,12 @@ encode_packet :: proc(state: ^App_State, packet: Outbound_Packet) -> []byte{
 test_mutex: sync.Mutex;
 
 encode_init_board_state :: proc(state: ^App_State) -> []byte {
+	// TODO: i have some wrong indexings
+	// making the data with dynamic array works, and is the right length
+	// also make sure the main thread keeps running until you send this data
+	// closing that thread will create garbage in the memory
+	// which is a FUCKING HELL to debug aaah 💀
+
 	// packet_data: [16 + NR_PIECES * 3 * 2 + 2]byte;
 	// packet_data: []byte = make([]byte, 16 + NR_PIECES * 3 * 2 + 2 + 100);
 	packet_data := make([dynamic]byte, 2);
