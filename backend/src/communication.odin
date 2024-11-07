@@ -10,7 +10,7 @@ import "core:slice"
 
 /*
 	PLAYER_JOIN:
-	packet_type: 0 (1 byte)
+	packet_type: 2 (1 byte)
 	packet_data_size: u8 (1 byte)
 	player_id: i64 (8 bytes)
 	color: 3 x u8 (3 bytes)
@@ -18,23 +18,24 @@ import "core:slice"
 	player_name: variable bytes
 
 	INITIAL_SETUP: 
-	packet_type: 0 (1 byte)
-	packet_data_size: 8 + 12 * 3 (1 byte)
+	packet_type: 3 (1 byte)
+	packet_data_size: 8 + NR_PIECES * 3 (1 byte)
 	player_id: i64 (8 bytes)
-	pieces: u8 + 2 x u8 (12 * 3 bytes)
+	pieces: u8 + 2 x u8 (NR_PIECES * 3 bytes)
 
 */
 
 PACKET_TYPE :: enum {
 	EMPTY_PACKET, // this is here to handle empty data, should never happen
+	EXIT,
 	PLAYER_JOIN,
 	INITIAL_SETUP,
 }
 
 
 Initial_Setup :: struct {
-	piece_types: [12]PIECE_TYPE,
-	positions: [12]v2i,
+	piece_types: [NR_PIECES]PIECE_TYPE,
+	positions: [NR_PIECES]v2i,
 }
 
 Packet_Data :: union {
@@ -77,45 +78,27 @@ handle_client_connection :: proc(client_data: rawptr){
 
 	player_data := decode_player_join_packet(player_join_packet);
 	set_player_data(state, player_data);
-	// sync.unlock(&state.accepting_connection);
 	
 	// This loops till our client wants to disconnect
 	for {
-		// allocating memory for our data
-		// data_in_bytes: [32]byte;
+		// get header
 		packet_header: [2]byte;
-		// receving some data from client
 		_ ,err := net.recv_tcp(scd.socket, packet_header[:]);
 		if err != nil {
 			fmt.panicf("error while recieving data %s", err);
 		}
 
+		// get data
 		packet_type: PACKET_TYPE = cast(PACKET_TYPE) packet_header[0];
 		packet_data_len: u8 = packet_header[1];
 		packet_data: []byte = make([]byte, packet_data_len);
+		if packet_type == .EXIT {
+			fmt.println("[communication] connection ended");
+			break; // TODO: handle setting player state to disconnected
+		}
 		_ ,err = net.recv_tcp(scd.socket, packet_data[:])
-
+		
 		decode_packet(state, packet_type, packet_data);
-
-		// exit_code := [32]byte{
-		// 	0, 0, 0, 0, 0, 0, 0, 0,
-		// 	0, 0, 0, 0, 0, 0, 0, 0,
-		// 	0, 0, 0, 0, 0, 0, 0, 0,
-		// 	0, 0, 0, 0, 0, 0, 0, 0,
-		// }
-		// if data_in_bytes == exit_code{
-		// 	fmt.println("connection ended");
-		// 	break; // TODO: handle setting player state to disconnected
-		// }
-		// converting bytes data to string
-		// data, e := strings.clone_from_bytes(data_in_bytes[:], context.allocator)
-		// if data != "" {
-		// 	if strings.starts_with(data, "exit") {
-		// 		fmt.println("connection ended");
-		// 		break; // TODO: handle setting player state to disconnected
-		// 	}
-		// 	fmt.println("client said :",data)
-		// }
 	}
 }
 
@@ -142,8 +125,8 @@ decode_packet :: proc(state: ^App_State, type: PACKET_TYPE, data: []byte) {
 			panic("[communication] Player join packet should be handled earlier");
 		case .INITIAL_SETUP:
 			player_id := slice.reinterpret([]i64, data[:8])[0];
-			pieces: [12]Piece;
-			for i in 0..<12 {
+			pieces: [NR_PIECES]Piece;
+			for i in 0..<NR_PIECES {
 				piece_type := cast(PIECE_TYPE) data[8 + i * 3];
 				position: v2i;
 				position.x = cast(int) cast(u8) data[8 + i * 3 + 1];
@@ -155,9 +138,12 @@ decode_packet :: proc(state: ^App_State, type: PACKET_TYPE, data: []byte) {
 					i,
 				)
 			}
-			// fmt.println(pieces);
-			for piece in pieces {
-				fmt.println(piece);
-			}
+
+			add_pieces(state, player_id, pieces);
+
+		case .EXIT:
+			panic("[communication] Exit packet should be handled earlier");
+
 	}
+
 }

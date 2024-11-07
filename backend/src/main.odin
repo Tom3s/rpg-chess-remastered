@@ -3,6 +3,7 @@ package main
 import "core:fmt"
 import "core:math/rand"
 import "core:os"
+import "core:strings"
 
 import "core:thread"
 import "core:net"
@@ -13,20 +14,25 @@ Player :: struct {
 	id: i64,
 	name: string,
 	color: [3]u8,
+
+	ready: bool,
 }
+
+NR_PIECES :: 14;
+BOARD_SIZE :: 9;
 
 App_State :: struct {
 	mutex: sync.Mutex,
 	accepting_connection: sync.Mutex,
 
 	current_player: u8,
-	board: [9][9]^Piece,
+	board: [BOARD_SIZE][BOARD_SIZE]^Piece,
 
 	p1: Player,
 	p2: Player,
 
-	p1pieces: [9]Piece,
-	p2pieces: [9]Piece,
+	p1pieces: [NR_PIECES]Piece,
+	p2pieces: [NR_PIECES]Piece,
 
 	p1dice: [6]int,
 	p2dice: [6]int,
@@ -36,7 +42,7 @@ App_State :: struct {
 reset_dice :: proc(dice: ^[6]int) {
 	dice^ = {1, 2, 3, 4, 5, 6};
 	rand.shuffle(dice[:]);
-	fmt.println("New dice bag: ", dice);
+	fmt.println("[main] New dice bag: ", dice);
 }
 
 init_app_state :: proc(state: ^App_State) {
@@ -68,20 +74,30 @@ get_next_dice_throw :: proc(state: ^App_State) -> int {
 	return -1;
 }
 
-add_pieces :: proc(state: ^App_State, playerid: int) {
-	// if playerid == 0 {
-	// 	for i in 0..<9 {
-	// 		piece := init_piece(.QUEEN, playerid, {i, 0}, i);
-	// 		state.p1pieces[i] = piece;
-	// 		state.board[0][i] = &state.p1pieces[i];
-	// 	}
-	// } else {
-	// 	for i in 0..<9 {
-	// 		piece := init_piece(.PAWN, playerid, {i, 8}, i);
-	// 		state.p2pieces[i] = piece;
-	// 		state.board[8][i] = &state.p2pieces[i];
-	// 	}
-	// }
+add_pieces :: proc(state: ^App_State, playerid: i64, pieces: [NR_PIECES]Piece) {
+	sync.lock(&state.mutex);
+	defer sync.unlock(&state.mutex);
+
+	pieces := pieces
+
+	if playerid == state.p1.id {
+		for &piece in pieces {
+			piece.position.y = piece.position.y + BOARD_SIZE - 2;
+			state.p1pieces[piece.id] = piece;
+			state.board[piece.position.y][piece.position.x] = &state.p1pieces[piece.id];
+		}
+		state.p1.ready = true;
+	} else if playerid == state.p2.id {
+		for &piece in pieces {
+			piece.position.y = 1 - piece.position.y;
+			piece.position.x = BOARD_SIZE - piece.position.x - 1;
+			state.p2pieces[piece.id] = piece;
+			state.board[piece.position.y][piece.position.x] = &state.p2pieces[piece.id];
+		}
+		state.p2.ready = true;
+	} else {
+		panic("[main] invalid player id!");
+	}
 }
 
 set_player_data :: proc(state: ^App_State, player: Player) {
@@ -100,32 +116,43 @@ set_player_data :: proc(state: ^App_State, player: Player) {
 }
 
 print_board :: proc(state: App_State) {
-	fmt.println() // separate for clarity
+	builder: strings.Builder; 
+	strings.builder_init(&builder);
+
+	// fmt.println() // separate for clarity
+	strings.write_string(&builder, "\n");
 	for col in state.board {
 		for tile in col {
-			// #partial switch (tile) {
-			// 	case nil:
-			// 	case 
-			// }
-			fmt.print("|");
+			// fmt.print("|");
+			strings.write_string(&builder, "|");
 			if tile == nil {
-				fmt.print("	 ");
+				// fmt.print(" ");
+				strings.write_string(&builder, "     ")     
 			} else {
-				fmt.print(get_piece_icon(tile^))
+				// fmt.print(get_piece_icon(tile^))
+				strings.write_string(&builder, get_piece_icon(tile^));
 			}
 		}
-		fmt.println("|")
-		// fmt.println("")
-		for i in 0..<(5 * 9 + 10) {
-			fmt.print("-")
+		// fmt.println("|")
+		strings.write_string(&builder, "|\n");
+
+		for i in 0..<(5 * BOARD_SIZE + 10) {
+			// fmt.print("-")
+			strings.write_string(&builder, "-");
 		}
-		fmt.println()
+		// fmt.println()
+		strings.write_string(&builder, "\n");
+
 	}
-	fmt.println()
+	fmt.println(strings.to_string(builder));
 }
 
 all_players_initialized :: proc(state: App_State) -> bool {
 	return state.p1.connected && state.p2.connected;
+}
+
+all_players_ready :: proc(state: App_State) -> bool {
+	return state.p1.ready && state.p2.ready;
 }
 
 ENDPOINT := net.Endpoint{address = net.IP4_Address{0, 0, 0, 0}, port = 4000};
@@ -159,34 +186,40 @@ main :: proc() {
 		scd.socket = client_socket;
 		scd.state = &state;
 		thread.create_and_start_with_data(scd, handle_client_connection);
-
 	}
 
-	add_pieces(&state, 0);
-	add_pieces(&state, 1);
+	for {
+		sync.lock(&state.mutex);
+		defer sync.unlock(&state.mutex);
+
+		if all_players_ready(state) do break;
+	}
+
+	// add_pieces(&state, 0);
+	// add_pieces(&state, 1);
 
 
 	print_board(state);
 
 
-	for i in 0..<24{
-		// get input
+	// for i in 0..<24{
+	// 	// get input
 
-		// buf: [256]byte
-		// fmt.println("Press enter:")
-		// n, err := os.read(os.stdin, buf[:])
-		// if err != nil {
-		// 	fmt.eprintln("Error reading: ", err)
-		// 	return
-		// }
-		// str := string(buf[:n])
+	// 	// buf: [256]byte
+	// 	// fmt.println("Press enter:")
+	// 	// n, err := os.read(os.stdin, buf[:])
+	// 	// if err != nil {
+	// 	// 	fmt.eprintln("Error reading: ", err)
+	// 	// 	return
+	// 	// }
+	// 	// str := string(buf[:n])
 		
-		// update game logic
-		current_throw := get_next_dice_throw(&state);
-		fmt.println("Player ", state.current_player+1, ": ", current_throw);
+	// 	// update game logic
+	// 	current_throw := get_next_dice_throw(&state);
+	// 	fmt.println("Player ", state.current_player+1, ": ", current_throw);
 
-		state.current_player = (state.current_player + 1) % 2;
-		// broadcast changes
-	}
+	// 	state.current_player = (state.current_player + 1) % 2;
+	// 	// broadcast changes
+	// }
 }
 

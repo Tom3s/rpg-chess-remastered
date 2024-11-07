@@ -11,13 +11,13 @@ class_name SetupBuilder
 @onready var pieceButtons: VBoxContainer = %PieceButtons
 @onready var placedPiecesLabel: Label = %PlacedPiecesLabel
 @onready var resetButton: Button = %ResetButton
+@onready var readyButton: Button = %ReadyButton
 
 @onready var pieces: Node2D = %Pieces
 
 # var showPlacementPreview: bool = false
 var selectedPiece: GlobalNames.PIECE_TYPE = GlobalNames.PIECE_TYPE.NONE
-const MAX_PIECES: int = 14
-var available: int = MAX_PIECES:
+var available: int = GlobalNames.NR_PIECES:
 	set(newAvailable):
 		if newAvailable <= 0:
 			selectedPiece = GlobalNames.PIECE_TYPE.NONE
@@ -30,6 +30,9 @@ var available: int = MAX_PIECES:
 			for button in pieceButtons.get_children():
 				button.disabled = button.available <= 0
 		available = newAvailable
+
+		readyButton.disabled = available != 0
+
 		setPlacedPiecesLabel()
 
 
@@ -64,10 +67,12 @@ func _ready() -> void:
 
 	resetButton.pressed.connect(resetBoard)
 
+	readyButton.pressed.connect(playerReady)
+
 	setPlacedPiecesLabel()
 	
 func setPlacedPiecesLabel() -> void:
-	placedPiecesLabel.text = "Pieces: " + str(MAX_PIECES - available) + "/" + str(MAX_PIECES)
+	placedPiecesLabel.text = "Pieces: " + str(GlobalNames.NR_PIECES - available) + "/" + str(GlobalNames.NR_PIECES)
 				
 
 
@@ -158,4 +163,7 @@ func resetBoard() -> void:
 	for button in pieceButtons.get_children():
 		button.available = button.maxAvailable
 	
-	available = MAX_PIECES
+	available = GlobalNames.NR_PIECES
+
+func playerReady() -> void:
+	Network.send_inital_setup_packet(pieces)

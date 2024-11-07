@@ -11,6 +11,8 @@ enum PIECE_TYPE {
 	NONE = -1,
 }
 
+const NR_PIECES := 14
+
 var pieceTextures := [
 	preload("res://Assets/Pawn_icon.png"),
 	preload("res://Assets/Bishop_icon.png"),
@@ -18,3 +20,8 @@ var pieceTextures := [
 	preload("res://Assets/Knight_icon.png"),
 	preload("res://Assets/Queen_icon.png"),
 ]
+
+class Player:
+	var id: int = -1
+	var name: String = ""
+	var color: Color = Color.WHITE

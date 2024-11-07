@@ -194,6 +194,13 @@ layout_mode = 2
 focus_mode = 0
 text = "Reset Board"
 
+[node name="ReadyButton" type="Button" parent="CanvasLayer/HBoxContainer/PanelContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+focus_mode = 0
+disabled = true
+text = "Ready"
+
 [node name="Board" parent="." instance=ExtResource("1_13eh5")]
 unique_name_in_owner = true
 height = 2

@@ -4,11 +4,11 @@ extends Node2D
 @onready var say_button: Button = %SaySomething
 @onready var exit_button: Button = %Exit
 
-enum PACKET_TYPE {
-	EMPTY_PACKET,
-	PLAYER_JOIN,
-	INITIAL_SETUP,
-}
+# enum Network.PACKET_TYPE {
+# 	EMPTY_PACKET,
+# 	PLAYER_JOIN,
+# 	INITIAL_SETUP,
+# }
 
 
 
@@ -27,13 +27,7 @@ func _process(delta: float) -> void:
 
 var peer: StreamPeerTCP = null
 
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		if peer != null: 
-			#peer.put_data("exit".to_ascii_buffer())
-			peer.disconnect_from_host()
-			peer = null
-		get_tree().quit() # default behavior
+
 
 func connect_pressed() -> void:
 	print("Connect Button pressed")
@@ -72,7 +66,7 @@ func connect_pressed() -> void:
 		var player_name := names[randi() % names.size()]
 		var player_data := PackedByteArray()
 		player_data.resize(14)
-		player_data.encode_u8(0, PACKET_TYPE.PLAYER_JOIN)
+		player_data.encode_u8(0, Network.PACKET_TYPE.PLAYER_JOIN)
 		player_data.encode_u8(1, 12 + player_name.length())
 		player_data.encode_s64(2, 34673)
 		player_data.encode_u8(10, 110)
@@ -94,7 +88,7 @@ func say_pressed() -> void:
 		#peer.put_data("Something".to_ascii_buffer())
 		var init_setup_data := PackedByteArray()
 		init_setup_data.resize(8 + 12 * 3 + 2)
-		init_setup_data.encode_u8(0, PACKET_TYPE.INITIAL_SETUP)
+		init_setup_data.encode_u8(0, Network.PACKET_TYPE.INITIAL_SETUP)
 		init_setup_data.encode_u8(1, 8 + 12 * 3)
 		init_setup_data.encode_s64(2, 34673)
 		for i in 9:
