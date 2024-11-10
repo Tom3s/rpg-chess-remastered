@@ -18,9 +18,12 @@ Player :: struct {
 	name: string,
 	color: [3]u8,
 
+	pieces: [NR_PIECES]Piece,
+
 	ready: bool,
 
 	socket: net.TCP_Socket,
+	requests: Outbound_Packet_Queue,
 }
 
 NR_PIECES :: 14;
@@ -30,18 +33,19 @@ App_State :: struct {
 	mutex: sync.Mutex,
 	accepting_connection: sync.Mutex,
 
-	p1requests: Outbound_Packet_Queue,
-	p2requests: Outbound_Packet_Queue,
+	// p1.requests: Outbound_Packet_Queue,
+	// p2.requests: Outbound_Packet_Queue,
 	
 
 	current_player: u8,
+	current_throw: int,
 	board: [BOARD_SIZE][BOARD_SIZE]^Piece,
 
 	p1: Player,
 	p2: Player,
 
-	p1pieces: [NR_PIECES]Piece,
-	p2pieces: [NR_PIECES]Piece,
+	// p1.pieces: [NR_PIECES]Piece,
+	// p2.pieces: [NR_PIECES]Piece,
 
 	p1dice: [6]int,
 	p2dice: [6]int,
@@ -58,8 +62,10 @@ init_app_state :: proc(state: ^App_State) {
 	reset_dice(&state.p1dice);
 	reset_dice(&state.p2dice);
 
-	state.p1requests = make_out_packet_queue();
-	state.p2requests = make_out_packet_queue();
+	state.p1.requests = make_out_packet_queue();
+	state.p2.requests = make_out_packet_queue();
+
+	state.current_player = 1;
 }
 
 get_next_dice_throw :: proc(state: ^App_State) -> int {
@@ -95,16 +101,16 @@ add_pieces :: proc(state: ^App_State, playerid: i64, pieces: [NR_PIECES]Piece) {
 	if playerid == state.p1.id {
 		for &piece in pieces {
 			piece.position.y = piece.position.y + BOARD_SIZE - 2;
-			state.p1pieces[piece.id] = piece;
-			state.board[piece.position.y][piece.position.x] = &state.p1pieces[piece.id];
+			state.p1.pieces[piece.id] = piece;
+			state.board[piece.position.y][piece.position.x] = &state.p1.pieces[piece.id];
 		}
 		state.p1.ready = true;
 	} else if playerid == state.p2.id {
 		for &piece in pieces {
 			piece.position.y = 1 - piece.position.y;
 			piece.position.x = BOARD_SIZE - piece.position.x - 1;
-			state.p2pieces[piece.id] = piece;
-			state.board[piece.position.y][piece.position.x] = &state.p2pieces[piece.id];
+			state.p2.pieces[piece.id] = piece;
+			state.board[piece.position.y][piece.position.x] = &state.p2.pieces[piece.id];
 		}
 		state.p2.ready = true;
 	} else {
@@ -167,6 +173,73 @@ all_players_ready :: proc(state: App_State) -> bool {
 	return state.p1.ready && state.p2.ready;
 }
 
+move_piece :: proc(state: ^App_State, player_id: i64, piece_id: u8, target_tile: v2i) {
+	player: ^Player;
+	if player_id == state.p1.id {
+		player = &state.p1;
+	} else {
+		player = &state.p2;
+	}
+
+	piece := &player.pieces[piece_id];
+	fmt.println("Old piece", piece);
+	state.board[piece.position.y][piece.position.x] = nil;
+	piece.position = target_tile;
+	fmt.println("New piece", piece);
+	state.board[piece.position.y][piece.position.x] = piece;
+
+	print_board(state^);
+
+	data := new(Piece_Moved_Data)
+	data.player_id = player_id;
+	data.piece_id = piece_id;
+	data.target_tile = target_tile;
+	
+	out_packet_queue_push(&state.p1.requests,
+		{
+			type = .PIECE_MOVED,
+			data = data,
+		}
+	)
+	data2 := new(Piece_Moved_Data)
+	data2.player_id = player_id;
+	data2.piece_id = piece_id;
+	data2.target_tile = target_tile;
+	out_packet_queue_push(&state.p2.requests,
+		{
+			type = .PIECE_MOVED,
+			data = data2,
+		}
+	)
+
+	start_round(state);
+}
+
+start_round :: proc(state: ^App_State) {
+	state.current_player = (state.current_player + 1) % 2;
+	state.current_throw = get_next_dice_throw(state);
+
+	data := new(Round_Start_Data);
+	data.player = state.current_player;
+	data.current_throw = cast(u8) state.current_throw;
+	out_packet_queue_push(&state.p1.requests,
+		{
+			type = .ROUND_START,
+			data = data,
+		}
+	)
+
+	data2 := new(Round_Start_Data);
+	data2.player = state.current_player;
+	data2.current_throw = cast(u8) state.current_throw;
+	out_packet_queue_push(&state.p2.requests,
+		{
+			type = .ROUND_START,
+			data = data2,
+		}
+	)
+}
+
 ENDPOINT := net.Endpoint{address = net.IP4_Address{0, 0, 0, 0}, port = 4000};
 
 // odin run ./backend/src -out:main.exe
@@ -223,16 +296,21 @@ main :: proc() {
 
 	print_board(state);
 
-	out_packet_queue_push(&state.p1requests, {
+
+
+	out_packet_queue_push(&state.p1.requests, {
 		type = .INIT_BOARD_STATE,
 		data = nil,
 	})
-	out_packet_queue_push(&state.p2requests, {
+	out_packet_queue_push(&state.p2.requests, {
 		type = .INIT_BOARD_STATE,
 		data = nil,
 	})
 
+	start_round(&state);
+
 	// time.sleep(cast(time.Duration) seconds_to_sleep * time.Second);
+
 	for {
 		
 	}

@@ -11,6 +11,10 @@ extends Node
 
 var mainPlayer: GlobalNames.Player = GlobalNames.Player.new()
 
+var p1_id: int
+var p2_id: int
+
+
 enum PACKET_TYPE {
 	EMPTY_PACKET,
 	EXIT,
@@ -19,6 +23,9 @@ enum PACKET_TYPE {
 	INIT_BOARD_STATE,
 	AVAILABLE_MOVE_REQUEST,
 	AVAILABLE_MOVES,
+	MOVE_PIECE,
+	PIECE_MOVED,
+	ROUND_START,
 }
 
 var socket: StreamPeerTCP = null
@@ -27,13 +34,22 @@ var socket: StreamPeerTCP = null
 
 # region Signals
 
+# signal initial_board_setup_received()
 signal available_moves_received(moves: Array[Vector2i])
+signal piece_moved(player_id: int, piece_id: int, target_tile: Vector2i)
+signal round_started(player: int, throw: int)
+
+var incoming_thread: Thread
 
 func _ready() -> void:
 	# TODO: proper player handling and ID
 	mainPlayer.id = randi()
 	print("[Network.gd] Global script loaded")
 
+func _process(_delta: float) -> void:
+	if GlobalNames.initialBoardData.size() > 0:
+		get_tree().change_scene_to_file("res://GameScene.tscn")
+	
 
 func connect_to_server(address: String = "127.0.0.1", port: int = 4000) -> Error:
 	print("[Network.gd] Connect Button pressed")
@@ -66,6 +82,9 @@ func connect_to_server(address: String = "127.0.0.1", port: int = 4000) -> Error
 				return ERR_TIMEOUT
 
 		print("[Network.gd] Connection Succesful", socket.get_status())
+
+		incoming_thread = Thread.new()
+		incoming_thread.start(handle_incoming_packets)
 
 		return OK
 
@@ -148,6 +167,25 @@ func send_inital_setup_packet(pieceParent: Node2D) -> void:
 
 	socket.put_data(init_setup_data)
 
+func send_move_piece_packet(piece_id: int, target: Vector2i) -> void:
+	var packet_data := PackedByteArray()
+	packet_data.resize(2 + 8 + 1 + 2)
+
+	packet_data.encode_u8(0, PACKET_TYPE.MOVE_PIECE)
+	packet_data.encode_u8(1, 8 + 1 + 2)
+
+	packet_data.encode_s64(2, mainPlayer.id)
+	packet_data.encode_u8(10, piece_id)
+
+	packet_data.encode_u8(11, target.x)
+	packet_data.encode_u8(12, target.y)
+
+	socket.put_data(packet_data)
+
+	# receive_packet()
+
+
+
 func request_available_moves(piece_id: int) -> void:
 	var packet_data := PackedByteArray()
 	packet_data.resize(2 + 8 + 1)
@@ -160,8 +198,11 @@ func request_available_moves(piece_id: int) -> void:
 
 	socket.put_data(packet_data)
 
-	receive_packet()
+	# receive_packet()
 
+func handle_incoming_packets() -> void:
+	while true:
+		receive_packet()
 
 func receive_packet() -> void:
 	var result: Array = socket.get_data(2)
@@ -190,8 +231,7 @@ func receive_packet() -> void:
 func decode_packet(packet_type: PACKET_TYPE, data: PackedByteArray) -> void:
 	match packet_type:
 		PACKET_TYPE.INIT_BOARD_STATE:
-			var p1_id: int = data.decode_s64(0)
-			print(p1_id)
+			p1_id = data.decode_s64(0)
 			var p1_pieces: Array[Piece]
 			for i in GlobalNames.NR_PIECES:
 				var piece: Piece = Piece.new()
@@ -200,10 +240,10 @@ func decode_packet(packet_type: PACKET_TYPE, data: PackedByteArray) -> void:
 				var y: int = data.decode_u8(8 + i * 3 + 2)
 				piece.pieceType = piece_type
 				piece.positionOnBoard = Vector2i(x, y)
+				piece.owner_player = p1_id
 				p1_pieces.push_back(piece)
 			
-			var p2_id: int = data.decode_s64(8 + GlobalNames.NR_PIECES * 3)
-			print(p2_id)
+			p2_id = data.decode_s64(8 + GlobalNames.NR_PIECES * 3)
 			var offset: int = 8 + GlobalNames.NR_PIECES * 3 + 8
 			var p2_pieces: Array[Piece]
 			for i in GlobalNames.NR_PIECES:
@@ -213,10 +253,11 @@ func decode_packet(packet_type: PACKET_TYPE, data: PackedByteArray) -> void:
 				var y: int = data.decode_u8(offset + i * 3 + 2)
 				piece.pieceType = piece_type
 				piece.positionOnBoard = Vector2i(x, y)
+				piece.owner_player = p2_id
 				p2_pieces.push_back(piece)
 			
 			GlobalNames.initialBoardData = [p1_pieces, p2_pieces]
-			get_tree().change_scene_to_file("res://GameScene.tscn")
+			# get_tree().change_scene_to_file("res://GameScene.tscn")
 		
 		PACKET_TYPE.AVAILABLE_MOVES:
 			var nr_moves: int = data.decode_u8(0)
@@ -229,7 +270,25 @@ func decode_packet(packet_type: PACKET_TYPE, data: PackedByteArray) -> void:
 
 				moves.push_back(Vector2i(x, y))
 
-			available_moves_received.emit(moves)
+			# available_moves_received.emit(moves)
+			# call_deferred(available_moves_received.emit.bind(moves))
+			call_deferred("emit_signal", "available_moves_received", moves)
 
+		PACKET_TYPE.PIECE_MOVED:
+			var player_id: int = data.decode_s64(0)
+			var piece_id: int = data.decode_u8(8)
+
+			var target_tile: Vector2i;
+			target_tile.x = data.decode_u8(9)
+			target_tile.y = data.decode_u8(10)
+
+			# piece_moved.emit(player_id, piece_id, target_tile)
+			call_deferred("emit_signal", "piece_moved", player_id, piece_id, target_tile)
+
+		PACKET_TYPE.ROUND_START:
+			var player: int = data.decode_u8(0)
+			var throw: int = data.decode_u8(8)
+
+			call_deferred("emit_signal", "round_started", player, throw)
 		# _:
 			# default

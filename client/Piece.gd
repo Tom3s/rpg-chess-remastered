@@ -11,6 +11,7 @@ var pieceType: GlobalNames.PIECE_TYPE = GlobalNames.PIECE_TYPE.NONE:
 var positionOnBoard: Vector2i
 
 var id: int = -1
+var owner_player: int
 
 func _ready() -> void:
 	%Sprite.texture = GlobalNames.pieceTextures[pieceType]

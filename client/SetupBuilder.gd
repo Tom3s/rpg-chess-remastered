@@ -205,4 +205,4 @@ func randomizeBoard() -> void:
 func playerReady() -> void:
 	Network.send_inital_setup_packet(pieces)
 
-	Network.receive_packet()
+	# Network.receive_packet()

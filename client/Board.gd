@@ -46,7 +46,7 @@ var offsetX: int = -width * GRID_SIZE / 2
 var offsetY: int = -height * GRID_SIZE / 2
 
 const padding = 5
-var hoveringSquare: Vector2i = Vector2i(-1, -1)
+var hoveringSquare: Vector2i = Vector2i.MAX
 var reachableTiles: Array[Vector2i] = []
 var attackableTiles: Array[Vector2i] = []
 
@@ -97,7 +97,7 @@ func _draw() -> void:
 		# draw_rect(Rect2(posX, posY, GRID_SIZE - padding*2, GRID_SIZE - padding*2), Color.DARK_OLIVE_GREEN, false, padding * 2)
 		draw_rect(Rect2(posX, posY, GRID_SIZE, GRID_SIZE), Color(0.8, 0.1, 0.2, 0.5))
 	
-	if hoveringSquare != Vector2i(-1, -1):
+	if hoveringSquare != Vector2i.MAX:
 		var posX := hoveringSquare.x * GRID_SIZE + offsetX + padding
 		var posY := hoveringSquare.y * GRID_SIZE + offsetY + padding
 		
@@ -112,7 +112,7 @@ func setHoveringSquare(pos: Vector2i) -> void:
 	if isTilePositionValid(pos):
 		hoveringSquare = pos
 	else:
-		hoveringSquare = Vector2i(-1, -1)
+		hoveringSquare = Vector2i.MAX
 	
 	queue_redraw()
 
