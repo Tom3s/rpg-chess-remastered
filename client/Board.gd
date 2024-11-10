@@ -50,6 +50,8 @@ var hoveringSquare: Vector2i = Vector2i(-1, -1)
 var reachableTiles: Array[Vector2i] = []
 var attackableTiles: Array[Vector2i] = []
 
+func _ready() -> void:
+	Network.available_moves_received.connect(setReachableTiles)
 
 func _draw() -> void:
 	if showTop:

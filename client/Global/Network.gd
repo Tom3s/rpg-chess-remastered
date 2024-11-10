@@ -17,9 +17,17 @@ enum PACKET_TYPE {
 	PLAYER_JOIN,
 	INITIAL_SETUP,
 	INIT_BOARD_STATE,
+	AVAILABLE_MOVE_REQUEST,
+	AVAILABLE_MOVES,
 }
 
 var socket: StreamPeerTCP = null
+
+# endregion
+
+# region Signals
+
+signal available_moves_received(moves: Array[Vector2i])
 
 func _ready() -> void:
 	# TODO: proper player handling and ID
@@ -140,6 +148,21 @@ func send_inital_setup_packet(pieceParent: Node2D) -> void:
 
 	socket.put_data(init_setup_data)
 
+func request_available_moves(piece_id: int) -> void:
+	var packet_data := PackedByteArray()
+	packet_data.resize(2 + 8 + 1)
+
+	packet_data.encode_u8(0, PACKET_TYPE.AVAILABLE_MOVE_REQUEST)
+	packet_data.encode_u8(1, 8 + 1)
+
+	packet_data.encode_s64(2, mainPlayer.id)
+	packet_data.encode_u8(10, piece_id)
+
+	socket.put_data(packet_data)
+
+	receive_packet()
+
+
 func receive_packet() -> void:
 	var result: Array = socket.get_data(2)
 
@@ -194,6 +217,19 @@ func decode_packet(packet_type: PACKET_TYPE, data: PackedByteArray) -> void:
 			
 			GlobalNames.initialBoardData = [p1_pieces, p2_pieces]
 			get_tree().change_scene_to_file("res://GameScene.tscn")
-			
+		
+		PACKET_TYPE.AVAILABLE_MOVES:
+			var nr_moves: int = data.decode_u8(0)
+
+			var moves: Array[Vector2i] = []
+
+			for i in nr_moves:
+				var x: int = data.decode_u8(1 + i * 2)
+				var y: int = data.decode_u8(1 + i * 2 + 1)
+
+				moves.push_back(Vector2i(x, y))
+
+			available_moves_received.emit(moves)
+
 		# _:
 			# default

@@ -31,7 +31,17 @@ import "core:slice"
 	player_id: i64 (8 bytes)
 	pieces: u8 + 2 x u8 (NR_PIECES * 3 bytes)
 
+	AVAILABLE_MOVE_REQUEST:
+	packet_type: 4 (1 byte)
+	packet_data_size: 8 + 1 (1 byte)
+	player_id: i64 (8 bytes)
+	piece_id: u8 (1 byte)
 
+	AVAILABLE_MOVES:
+	packet_type: 4 (1 byte)
+	packet_data_size: 1 + n * 2 (1 byte)
+	moves_len: u8 (1 byte)
+	moves: u8 * 2 * n (n * 2 bytes)
 */
 
 PACKET_TYPE :: enum {
@@ -40,6 +50,8 @@ PACKET_TYPE :: enum {
 	PLAYER_JOIN,
 	INIT_PLAYER_SETUP,
 	INIT_BOARD_STATE,
+	AVAILABLE_MOVE_REQUEST,
+	AVAILABLE_MOVES,
 }
 
 
@@ -58,6 +70,11 @@ PACKET_TYPE :: enum {
 
 // 	data: Packet_Data,
 // }
+
+Available_Move_Data :: struct {
+	player_id: i64,
+	piece_id: u8
+}
 
 Outbound_Packet :: struct {
 	type: PACKET_TYPE,
@@ -210,6 +227,8 @@ decode_packet :: proc(state: ^App_State, type: PACKET_TYPE, data: []byte) {
 			// TODO: handle worng packets
 		case .PLAYER_JOIN:
 			panic("[communication] Player join packet should be handled earlier");
+		case .EXIT:
+			panic("[communication] Exit packet should be handled earlier");
 		case .INIT_PLAYER_SETUP:
 			// TODO: slice.to_type(...)
 			player_id := slice.reinterpret([]i64, data[:8])[0];
@@ -228,10 +247,28 @@ decode_packet :: proc(state: ^App_State, type: PACKET_TYPE, data: []byte) {
 			}
 
 			add_pieces(state, player_id, pieces); 
-		case .INIT_BOARD_STATE:
-			panic("[communication] Server shouldn't receive init board state")
-		case .EXIT:
-			panic("[communication] Exit packet should be handled earlier");
+		
+		case .AVAILABLE_MOVE_REQUEST:
+			player_id := slice.to_type(data[:8], i64);
+			piece_id := cast(u8) data[8];
+
+			// fmt.println(get_available_moves(state^, state.p1pieces[piece_id], 6));
+			data := new(Available_Move_Data)
+			data.piece_id = piece_id
+			data.player_id = player_id
+			if player_id == state.p1.id{
+				out_packet_queue_push(&state.p1requests, {
+					type = .AVAILABLE_MOVES,
+					data = data,
+				})
+			}
+
+		case .INIT_BOARD_STATE: fallthrough
+		case .AVAILABLE_MOVES:
+			fmt.println("[communication] Server shouldn't receive ", type, " packet!");
+			panic("")
+		
+
 	}
 
 }
@@ -241,12 +278,22 @@ encode_packet :: proc(state: ^App_State, packet: Outbound_Packet) -> []byte{
 		case .EMPTY_PACKET: fallthrough
 		case .EXIT: fallthrough
 		case .INIT_PLAYER_SETUP: fallthrough
+		case .AVAILABLE_MOVE_REQUEST: fallthrough
 		case .PLAYER_JOIN: 
 			fmt.println("[communication] Server shouldn't send ", packet.type, " packets!");
 			panic("");
 			// return []byte{};
 		case .INIT_BOARD_STATE:
 			return encode_init_board_state(state);
+		case .AVAILABLE_MOVES:
+			data := (cast(^Available_Move_Data) packet.data)^;
+			piece_id := data.piece_id;
+			player_id := data.player_id;
+			free(packet.data);
+
+			fmt.println("[communication] Player with ID ", player_id, " requested moves for piece ", piece_id);
+
+			return encode_available_moves(state^, player_id, piece_id);
 
 	}
 	panic("Illegal state")
@@ -294,6 +341,29 @@ encode_init_board_state :: proc(state: ^App_State) -> []byte {
 		append(&packet_data, cast(u8) piece.type)
 		append(&packet_data, cast(u8) piece.position.x)
 		append(&packet_data, cast(u8) piece.position.y)
+	}
+
+	packet_data[1] = cast(byte) len(packet_data) - 2;
+
+	return slice.reinterpret([]byte, packet_data[:]);
+}
+
+encode_available_moves :: proc(state: App_State, player_id: i64, piece_id: u8) -> []byte {
+	packet_data := make([dynamic]byte, 2);
+	packet_data[0] = cast(byte) PACKET_TYPE.AVAILABLE_MOVES;
+
+	moves: [dynamic]Action;
+	if player_id == state.p1.id {
+		moves = get_available_moves(state, state.p1pieces[piece_id], 6);
+	} else {
+		moves = get_available_moves(state, state.p2pieces[piece_id], 6);
+	}
+
+	append(&packet_data, cast(u8) len(moves));
+
+	for action in moves {
+		append(&packet_data, cast(u8) action.target_tile.x);
+		append(&packet_data, cast(u8) action.target_tile.y);
 	}
 
 	packet_data[1] = cast(byte) len(packet_data) - 2;
