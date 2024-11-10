@@ -16,4 +16,3 @@ func _ready() -> void:
 func setPosition(newPos: Vector2i, board: Board) -> void:
 	positionOnBoard = newPos
 	global_position = board.indexToPosition(newPos)
-

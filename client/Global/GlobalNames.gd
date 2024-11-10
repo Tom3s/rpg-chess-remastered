@@ -26,3 +26,5 @@ class Player:
 	var id: int = -1
 	var name: String = ""
 	var color: Color = Color.WHITE
+
+var initialBoardData: Array = []

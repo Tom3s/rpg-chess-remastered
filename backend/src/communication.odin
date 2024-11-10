@@ -227,7 +227,7 @@ decode_packet :: proc(state: ^App_State, type: PACKET_TYPE, data: []byte) {
 				)
 			}
 
-			add_pieces(state, player_id, pieces);
+			add_pieces(state, player_id, pieces); 
 		case .INIT_BOARD_STATE:
 			panic("[communication] Server shouldn't receive init board state")
 		case .EXIT:
@@ -301,7 +301,7 @@ encode_init_board_state :: proc(state: ^App_State) -> []byte {
 	return slice.reinterpret([]byte, packet_data[:]);
 }
 
-
+// Credit: Ferenc a fonok
 bytes_of :: proc(data: ^$T) -> []byte{
     return slice.bytes_from_ptr(data, size_of(T));
 }

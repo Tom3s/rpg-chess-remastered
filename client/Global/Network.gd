@@ -142,6 +142,7 @@ func send_inital_setup_packet(pieceParent: Node2D) -> void:
 
 func receive_packet() -> void:
 	var result: Array = socket.get_data(2)
+
 	
 	var _error: Error = result[0]
 	var header: PackedByteArray = result[1]
@@ -158,6 +159,41 @@ func receive_packet() -> void:
 
 	result = socket.get_data(packet_len)
 	_error = result[0]
+
 	var data: Array = result[1]
 
-	print(data)
+	decode_packet(packet_type, data)
+
+func decode_packet(packet_type: PACKET_TYPE, data: PackedByteArray) -> void:
+	match packet_type:
+		PACKET_TYPE.INIT_BOARD_STATE:
+			var p1_id: int = data.decode_s64(0)
+			print(p1_id)
+			var p1_pieces: Array[Piece]
+			for i in GlobalNames.NR_PIECES:
+				var piece: Piece = Piece.new()
+				var piece_type: GlobalNames.PIECE_TYPE = data.decode_u8(8 + i *3) as GlobalNames.PIECE_TYPE
+				var x: int = data.decode_u8(8 + i * 3 + 1)
+				var y: int = data.decode_u8(8 + i * 3 + 2)
+				piece.pieceType = piece_type
+				piece.positionOnBoard = Vector2i(x, y)
+				p1_pieces.push_back(piece)
+			
+			var p2_id: int = data.decode_s64(8 + GlobalNames.NR_PIECES * 3)
+			print(p2_id)
+			var offset: int = 8 + GlobalNames.NR_PIECES * 3 + 8
+			var p2_pieces: Array[Piece]
+			for i in GlobalNames.NR_PIECES:
+				var piece: Piece = Piece.new()
+				var piece_type: GlobalNames.PIECE_TYPE = data.decode_u8(offset + i *3) as GlobalNames.PIECE_TYPE
+				var x: int = data.decode_u8(offset + i * 3 + 1)
+				var y: int = data.decode_u8(offset + i * 3 + 2)
+				piece.pieceType = piece_type
+				piece.positionOnBoard = Vector2i(x, y)
+				p2_pieces.push_back(piece)
+			
+			GlobalNames.initialBoardData = [p1_pieces, p2_pieces]
+			get_tree().change_scene_to_file("res://GameScene.tscn")
+			
+		# _:
+			# default
