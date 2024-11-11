@@ -14,7 +14,7 @@ enum PIECE_TYPE {
 const NR_PIECES := 14
 const BOARD_SIZE := 9
 
-var pieceTextures := [
+var piece_textures := [
 	preload("res://Assets/Pawn_icon.png"),
 	preload("res://Assets/Bishop_icon.png"),
 	preload("res://Assets/Rook_icon.png"),
@@ -27,4 +27,4 @@ class Player:
 	var name: String = ""
 	var color: Color = Color.WHITE
 
-var initialBoardData: Array = []
+var initial_board_data: Array = []

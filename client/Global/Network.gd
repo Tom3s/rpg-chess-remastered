@@ -9,7 +9,7 @@ extends Node
 
 
 
-var mainPlayer: GlobalNames.Player = GlobalNames.Player.new()
+var main_player: GlobalNames.Player = GlobalNames.Player.new()
 
 var p1_id: int
 var p2_id: int
@@ -43,11 +43,11 @@ var incoming_thread: Thread
 
 func _ready() -> void:
 	# TODO: proper player handling and ID
-	mainPlayer.id = randi()
+	main_player.id = randi()
 	print("[Network.gd] Global script loaded")
 
 func _process(_delta: float) -> void:
-	if GlobalNames.initialBoardData.size() > 0:
+	if GlobalNames.initial_board_data.size() > 0:
 		get_tree().change_scene_to_file("res://GameScene.tscn")
 	
 
@@ -126,14 +126,14 @@ func send_player_join_packet() -> void:
 	var player_data := PackedByteArray()
 	player_data.resize(14)
 	player_data.encode_u8(0, PACKET_TYPE.PLAYER_JOIN)
-	player_data.encode_u8(1, 12 + mainPlayer.name.length())
-	player_data.encode_s64(2, mainPlayer.id)
-	player_data.encode_u8(10, mainPlayer.color.r8)
-	player_data.encode_u8(11, mainPlayer.color.g8)
-	player_data.encode_u8(12, mainPlayer.color.b8)
+	player_data.encode_u8(1, 12 + main_player.name.length())
+	player_data.encode_s64(2, main_player.id)
+	player_data.encode_u8(10, main_player.color.r8)
+	player_data.encode_u8(11, main_player.color.g8)
+	player_data.encode_u8(12, main_player.color.b8)
 	
-	player_data.encode_u8(13, mainPlayer.name.length())
-	player_data.append_array(mainPlayer.name.to_ascii_buffer())
+	player_data.encode_u8(13, main_player.name.length())
+	player_data.append_array(main_player.name.to_ascii_buffer())
 	#player_data.resize(256)
 	
 	socket.put_data(player_data)
@@ -151,15 +151,15 @@ func send_inital_setup_packet(pieceParent: Node2D) -> void:
 	init_setup_data.resize(8 + GlobalNames.NR_PIECES * 3 + 2)
 	init_setup_data.encode_u8(0, Network.PACKET_TYPE.INITIAL_SETUP)
 	init_setup_data.encode_u8(1, 8 + GlobalNames.NR_PIECES * 3)
-	init_setup_data.encode_s64(2, mainPlayer.id)
+	init_setup_data.encode_s64(2, main_player.id)
 
 
 	var i := 0
 	for p in pieceParent.get_children():
 		var piece: Piece = p
-		init_setup_data.encode_u8(10 + i * 3, piece.pieceType);
-		init_setup_data.encode_u8(10 + i * 3 + 1, piece.positionOnBoard.x);
-		init_setup_data.encode_u8(10 + i * 3 + 2, piece.positionOnBoard.y);
+		init_setup_data.encode_u8(10 + i * 3, piece.piece_type);
+		init_setup_data.encode_u8(10 + i * 3 + 1, piece.position_on_board.x);
+		init_setup_data.encode_u8(10 + i * 3 + 2, piece.position_on_board.y);
 
 		i += 1
 	
@@ -174,7 +174,7 @@ func send_move_piece_packet(piece_id: int, target: Vector2i) -> void:
 	packet_data.encode_u8(0, PACKET_TYPE.MOVE_PIECE)
 	packet_data.encode_u8(1, 8 + 1 + 2)
 
-	packet_data.encode_s64(2, mainPlayer.id)
+	packet_data.encode_s64(2, main_player.id)
 	packet_data.encode_u8(10, piece_id)
 
 	packet_data.encode_u8(11, target.x)
@@ -193,7 +193,7 @@ func request_available_moves(piece_id: int) -> void:
 	packet_data.encode_u8(0, PACKET_TYPE.AVAILABLE_MOVE_REQUEST)
 	packet_data.encode_u8(1, 8 + 1)
 
-	packet_data.encode_s64(2, mainPlayer.id)
+	packet_data.encode_s64(2, main_player.id)
 	packet_data.encode_u8(10, piece_id)
 
 	socket.put_data(packet_data)
@@ -238,8 +238,8 @@ func decode_packet(packet_type: PACKET_TYPE, data: PackedByteArray) -> void:
 				var piece_type: GlobalNames.PIECE_TYPE = data.decode_u8(8 + i *3) as GlobalNames.PIECE_TYPE
 				var x: int = data.decode_u8(8 + i * 3 + 1)
 				var y: int = data.decode_u8(8 + i * 3 + 2)
-				piece.pieceType = piece_type
-				piece.positionOnBoard = Vector2i(x, y)
+				piece.piece_type = piece_type
+				piece.position_on_board = Vector2i(x, y)
 				piece.owner_player = p1_id
 				p1_pieces.push_back(piece)
 			
@@ -251,12 +251,12 @@ func decode_packet(packet_type: PACKET_TYPE, data: PackedByteArray) -> void:
 				var piece_type: GlobalNames.PIECE_TYPE = data.decode_u8(offset + i *3) as GlobalNames.PIECE_TYPE
 				var x: int = data.decode_u8(offset + i * 3 + 1)
 				var y: int = data.decode_u8(offset + i * 3 + 2)
-				piece.pieceType = piece_type
-				piece.positionOnBoard = Vector2i(x, y)
+				piece.piece_type = piece_type
+				piece.position_on_board = Vector2i(x, y)
 				piece.owner_player = p2_id
 				p2_pieces.push_back(piece)
 			
-			GlobalNames.initialBoardData = [p1_pieces, p2_pieces]
+			GlobalNames.initial_board_data = [p1_pieces, p2_pieces]
 			# get_tree().change_scene_to_file("res://GameScene.tscn")
 		
 		PACKET_TYPE.AVAILABLE_MOVES:

@@ -8,14 +8,14 @@ class_name PlayerSelect
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	playerIdLabel.text = "Session ID: " + str(Network.mainPlayer.id)
+	playerIdLabel.text = "Session ID: " + str(Network.main_player.id)
 
 	playerNameEdit.text_changed.connect(func(text: String) -> void:
-		Network.mainPlayer.name = text
+		Network.main_player.name = text
 	)
 
 	playerColorPicker.color_changed.connect(func(color: Color) -> void:
-		Network.mainPlayer.color = color
+		Network.main_player.color = color
 	)
 
 	joinButton.pressed.connect(connect_with_handshake)
