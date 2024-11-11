@@ -244,7 +244,7 @@ get_available_moves :: proc(state: App_State, piece: Piece, cost: int) -> []Acti
 				{-2, 1},
 			}
 
-			for i in 1..<4 {
+			for i in 0..<4 {
 				move := piece.position + knight_moves[i];
 				if valid_move(state, move) {
 					append(&moves, Action{
