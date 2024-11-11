@@ -1,161 +1,208 @@
 extends Node2D
 class_name SetupBuilder
 
-@onready var pieceScene: PackedScene = preload("res://Piece.tscn")
+@onready var piece_scene: PackedScene = preload("res://Piece.tscn")
 
-@onready var floatingPreview: Sprite2D = %FloatingPreview
-@onready var transparentPreview: Sprite2D = %TransparentPreview
+@onready var floating_preview: Sprite2D = %FloatingPreview
+@onready var transparent_review: Sprite2D = %TransparentPreview
 @onready var camera: Camera2D = %Camera
 @onready var board: Board = %Board
 
-@onready var pieceButtons: VBoxContainer = %PieceButtons
-@onready var placedPiecesLabel: Label = %PlacedPiecesLabel
-@onready var resetButton: Button = %ResetButton
+@onready var piece_buttons: VBoxContainer = %PieceButtons
+@onready var placed_pieces_label: Label = %PlacedPiecesLabel
+@onready var reset_button: Button = %ResetButton
+@onready var random_button: Button = %RandomButton
+@onready var ready_button: Button = %ReadyButton
 
 @onready var pieces: Node2D = %Pieces
 
 # var showPlacementPreview: bool = false
-var selectedPiece: GlobalNames.PIECE_TYPE = GlobalNames.PIECE_TYPE.NONE
-const MAX_PIECES: int = 14
-var available: int = MAX_PIECES:
-	set(newAvailable):
-		if newAvailable <= 0:
-			selectedPiece = GlobalNames.PIECE_TYPE.NONE
-			floatingPreview.visible = false
-			transparentPreview.visible = false
+var selected_piece: GlobalNames.PIECE_TYPE = GlobalNames.PIECE_TYPE.NONE
+var available: int = GlobalNames.NR_PIECES:
+	set(new_available):
+		if new_available <= 0:
+			selected_piece = GlobalNames.PIECE_TYPE.NONE
+			floating_preview.visible = false
+			transparent_review.visible = false
 
-			for button in pieceButtons.get_children():
+			for button in piece_buttons.get_children():
 				button.disabled = true
 		else:
-			for button in pieceButtons.get_children():
+			for button in piece_buttons.get_children():
 				button.disabled = button.available <= 0
-		available = newAvailable
-		setPlacedPiecesLabel()
+		available = new_available
+
+		ready_button.disabled = available != 0
+
+		set_placed_pieces_label()
 
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	floatingPreview.visible = false
-	for child in pieceButtons.get_children():
+	floating_preview.visible = false
+	for child in piece_buttons.get_children():
 		var button: PieceSelectorButton = child
 		button.button_down.connect(func() -> void:
-			floatingPreview.visible = true
-			selectedPiece = button.pieceType
-			floatingPreview.texture = GlobalNames.pieceTextures[selectedPiece]
-			transparentPreview.texture = GlobalNames.pieceTextures[selectedPiece]
+			floating_preview.visible = true
+			selected_piece = button.piece_type
+			floating_preview.texture = GlobalNames.piece_textures[selected_piece]
+			transparent_review.texture = GlobalNames.piece_textures[selected_piece]
 		)
 		button.button_up.connect(func() -> void:
-			floatingPreview.visible = false
+			floating_preview.visible = false
 
-			placePiece()
+			place_piece()
 
 			if !button.button_pressed:
-				selectedPiece = GlobalNames.PIECE_TYPE.NONE
+				selected_piece = GlobalNames.PIECE_TYPE.NONE
 			
 		)
 		button.toggled.connect(func(toggled_on: bool) -> void:
 			if toggled_on:
-				for otherButton in pieceButtons.get_children():
+				for otherButton in piece_buttons.get_children():
 					if otherButton != button:
 						otherButton.button_pressed = false
-			elif selectedPiece == button.pieceType:
-				selectedPiece = GlobalNames.PIECE_TYPE.NONE
+			elif selected_piece == button.piece_type:
+				selected_piece = GlobalNames.PIECE_TYPE.NONE
 		)
 
-	resetButton.pressed.connect(resetBoard)
+	reset_button.pressed.connect(reset_board)
+	random_button.pressed.connect(randomize_board)
 
-	setPlacedPiecesLabel()
+	ready_button.pressed.connect(player_ready)
+
+	set_placed_pieces_label()
 	
-func setPlacedPiecesLabel() -> void:
-	placedPiecesLabel.text = "Pieces: " + str(MAX_PIECES - available) + "/" + str(MAX_PIECES)
+func set_placed_pieces_label() -> void:
+	placed_pieces_label.text = "Pieces: " + str(GlobalNames.NR_PIECES - available) + "/" + str(GlobalNames.NR_PIECES)
 				
 
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
 	var mosue_pos := get_local_mouse_position() 
-	floatingPreview.global_position = mosue_pos
+	floating_preview.global_position = mosue_pos
 
-	var closestTile := board.getClosestTile(mosue_pos)
-	transparentPreview.visible = closestTile != Vector2i.MAX \
-		&& (floatingPreview.visible || selectedPiece != GlobalNames.PIECE_TYPE.NONE)
-	transparentPreview.global_position = board.indexToPosition(closestTile)
+	var closest_tile := board.get_closest_tile(mosue_pos)
+	transparent_review.visible = closest_tile != Vector2i.MAX \
+		&& (floating_preview.visible || selected_piece != GlobalNames.PIECE_TYPE.NONE)
+	transparent_review.global_position = board.index_to_position(closest_tile)
 
-	if selectedPiece != GlobalNames.PIECE_TYPE.NONE:
+	if selected_piece != GlobalNames.PIECE_TYPE.NONE:
 		if Input.is_action_just_released("left_click"):
-			placePiece()
+			place_piece()
 
-	if !floatingPreview.visible && selectedPiece == GlobalNames.PIECE_TYPE.NONE:
+	if !floating_preview.visible && selected_piece == GlobalNames.PIECE_TYPE.NONE:
 		if Input.is_action_just_pressed("left_click"):
-			grabPiece()
+			grab_piece()
 
-func placePiece() -> void:
-	floatingPreview.visible = false
-	if !pieceButtons.get_child(selectedPiece).button_pressed:
-		transparentPreview.visible = false
-	var closestTile := board.getClosestTile(get_local_mouse_position())
-	if closestTile == Vector2i.MAX:
-		if !pieceButtons.get_child(selectedPiece).button_pressed: 
-			selectedPiece = GlobalNames.PIECE_TYPE.NONE
+func place_piece() -> void:
+	floating_preview.visible = false
+	if !piece_buttons.get_child(selected_piece).button_pressed:
+		transparent_review.visible = false
+	var closest_tile := board.get_closest_tile(get_local_mouse_position())
+	if closest_tile == Vector2i.MAX:
+		if !piece_buttons.get_child(selected_piece).button_pressed: 
+			selected_piece = GlobalNames.PIECE_TYPE.NONE
 		return
 
-	if pieceButtons.get_child(selectedPiece).available <= 0: return
+	if piece_buttons.get_child(selected_piece).available <= 0: return
 
 
 
 	for piece in pieces.get_children():
-		if piece.positionOnBoard == closestTile:
-			pieceButtons.get_child(piece.pieceType).available += 1
-			pieceButtons.get_child(selectedPiece).available -= 1
-			piece.pieceType = selectedPiece
-			if pieceButtons.get_child(selectedPiece).available <= 0:
-				selectedPiece = GlobalNames.PIECE_TYPE.NONE
-			if !pieceButtons.get_child(selectedPiece).button_pressed: 
-				selectedPiece = GlobalNames.PIECE_TYPE.NONE
+		if piece.position_on_board == closest_tile:
+			piece_buttons.get_child(piece.piece_type).available += 1
+			piece_buttons.get_child(selected_piece).available -= 1
+			piece.piece_type = selected_piece
+			if piece_buttons.get_child(selected_piece).available <= 0:
+				selected_piece = GlobalNames.PIECE_TYPE.NONE
+			if !piece_buttons.get_child(selected_piece).button_pressed: 
+				selected_piece = GlobalNames.PIECE_TYPE.NONE
 
 
 
 
 			return
 
-	var piece: Piece = pieceScene.instantiate()
+	var piece: Piece = piece_scene.instantiate()
 	pieces.add_child(piece)
-	piece.positionOnBoard = closestTile
-	piece.global_position = board.indexToPosition(closestTile)
-	piece.pieceType = selectedPiece
-	pieceButtons.get_child(selectedPiece).available -= 1
+	piece.position_on_board = closest_tile
+	piece.global_position = board.index_to_position(closest_tile)
+	piece.piece_type = selected_piece
+	piece_buttons.get_child(selected_piece).available -= 1
 	available -= 1
-	if pieceButtons.get_child(selectedPiece).available <= 0:
-		selectedPiece = GlobalNames.PIECE_TYPE.NONE
-	if !pieceButtons.get_child(selectedPiece).button_pressed: 
-		selectedPiece = GlobalNames.PIECE_TYPE.NONE
+	if piece_buttons.get_child(selected_piece).available <= 0:
+		selected_piece = GlobalNames.PIECE_TYPE.NONE
+	if !piece_buttons.get_child(selected_piece).button_pressed: 
+		selected_piece = GlobalNames.PIECE_TYPE.NONE
 
-func grabPiece() -> void:
+func grab_piece() -> void:
 	print("Grabbing")
-	var closestTile := board.getClosestTile(get_local_mouse_position())
-	if closestTile == Vector2i.MAX: return
+	var closest_tile := board.get_closest_tile(get_local_mouse_position())
+	if closest_tile == Vector2i.MAX: return
 
 	for piece in pieces.get_children():
-		if piece.positionOnBoard == closestTile:
-			pieceButtons.get_child(piece.pieceType).available += 1
+		if piece.position_on_board == closest_tile:
+			piece_buttons.get_child(piece.piece_type).available += 1
 			available += 1
-			# pieceButtons.get_child(piece.pieceType).button_pressed = true
-			selectedPiece = piece.pieceType
-			floatingPreview.texture = GlobalNames.pieceTextures[selectedPiece]
-			transparentPreview.texture = GlobalNames.pieceTextures[selectedPiece]
-			floatingPreview.visible = true
-			transparentPreview.visible = true
+			# piece_buttons.get_child(piece.piece_type).button_pressed = true
+			selected_piece = piece.piece_type
+			floating_preview.texture = GlobalNames.piece_textures[selected_piece]
+			transparent_review.texture = GlobalNames.piece_textures[selected_piece]
+			floating_preview.visible = true
+			transparent_review.visible = true
 
 
 			piece.queue_free()
 
 			break
 
-func resetBoard() -> void:
+func reset_board() -> void:
 	for piece in pieces.get_children():
 		piece.queue_free()
 	
-	for button in pieceButtons.get_children():
-		button.available = button.maxAvailable
+	for button in piece_buttons.get_children():
+		button.available = button.max_available
 	
-	available = MAX_PIECES
+	available = GlobalNames.NR_PIECES
+
+func randomize_board() -> void:
+	reset_board()
+
+	var tiles: Array[Vector2i]
+	for i in GlobalNames.BOARD_SIZE:
+		tiles.push_back(Vector2i(i, 0))
+		tiles.push_back(Vector2i(i, 1))
+	
+	var piece_types: Array[GlobalNames.PIECE_TYPE]
+	for b in piece_buttons.get_children():
+		var button: PieceSelectorButton = b 
+		for i in button.available:
+			piece_types.push_back(button.piece_type)
+	
+	for i in GlobalNames.NR_PIECES:
+		var tile: Vector2i = tiles.pick_random()
+		tiles.erase(tile)
+
+		var type: GlobalNames.PIECE_TYPE = piece_types.pick_random()
+		piece_types.erase(type)
+
+		var piece: Piece = piece_scene.instantiate()
+		pieces.add_child(piece)
+		piece.position_on_board = tile
+		piece.global_position = board.index_to_position(tile)
+		piece.piece_type = type
+		piece_buttons.get_child(type).available -= 1
+	
+	# transparent_review.visible = false
+	selected_piece = GlobalNames.PIECE_TYPE.NONE
+
+
+	available = 0
+
+
+func player_ready() -> void:
+	Network.send_inital_setup_packet(pieces)
+
+	# Network.receive_packet()

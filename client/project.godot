@@ -11,13 +11,14 @@ config_version=5
 [application]
 
 config/name="RPG Chess Client"
-run/main_scene="res://SetupBuilder.tscn"
+run/main_scene="res://PlayerSelect.tscn"
 config/features=PackedStringArray("4.3", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [autoload]
 
-GlobalNames="*res://GlobalNames.gd"
+GlobalNames="*res://Global/GlobalNames.gd"
+Network="*res://Global/Network.gd"
 
 [debug]
 

@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3 uid="uid://w6osov1hfnyr"]
+
+[ext_resource type="PackedScene" uid="uid://dgwdc1dwjva0w" path="res://Board.tscn" id="1_ayk78"]
+[ext_resource type="Script" path="res://GameScene.gd" id="1_lkxyc"]
+
+[node name="GameScene" type="Node2D"]
+script = ExtResource("1_lkxyc")
+
+[node name="Board" parent="." instance=ExtResource("1_ayk78")]
+unique_name_in_owner = true
+
+[node name="P1Pieces" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="P2Pieces" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="Camera" type="Camera2D" parent="."]
+zoom = Vector2(0.47, 0.47)

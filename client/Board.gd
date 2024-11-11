@@ -7,133 +7,132 @@ const BORDER_SIZE = 48
 
 @export
 var width: int = 9:
-	set(newWidth): 
-		width = newWidth
-		offsetX = -width * GRID_SIZE / 2
+	set(new_width): 
+		width = new_width
+		offset_x = -width * GRID_SIZE / 2
 		queue_redraw()
 
 @export
 var height: int = 9:
-	set(newHeight): 
-		height = newHeight
-		offsetY = -height * GRID_SIZE / 2
+	set(new_height): 
+		height = new_height
+		offset_y = -height * GRID_SIZE / 2
 		queue_redraw()
 
 @export
-var darkColor: Color = Color.DARK_CYAN:
-	set(newColor):
-		darkColor = newColor
+var dark_color: Color = Color.DARK_CYAN:
+	set(new_color):
+		dark_color = new_color
 		queue_redraw()
 @export
-var lightColor: Color = Color.LIGHT_SKY_BLUE:
-	set(newColor):
-		lightColor = newColor
-		queue_redraw()
-
-@export
-var borderColor: Color = Color.BLACK:
-	set(newColor):
-		borderColor = newColor
+var light_color: Color = Color.LIGHT_SKY_BLUE:
+	set(new_color):
+		light_color = new_color
 		queue_redraw()
 
 @export
-var showTop: bool = true:
+var border_color: Color = Color.BLACK:
+	set(new_color):
+		border_color = new_color
+		queue_redraw()
+
+@export
+var show_top: bool = true:
 	set(top):
-		showTop = top
+		show_top = top
 		queue_redraw()
 
-var offsetX: int = -width * GRID_SIZE / 2
-var offsetY: int = -height * GRID_SIZE / 2
+var offset_x: int = -width * GRID_SIZE / 2
+var offset_y: int = -height * GRID_SIZE / 2
 
 const padding = 5
-var hoveringSquare: Vector2i = Vector2i(-1, -1)
-var reachableTiles: Array[Vector2i] = []
-var attackableTiles: Array[Vector2i] = []
+var hovering_square: Vector2i = Vector2i.MAX
+var reachable_tiles: Array[Vector2i] = []
+var attackable_tiles: Array[Vector2i] = []
 
+func _ready() -> void:
+	Network.available_moves_received.connect(set_reachable_tiles)
 
 func _draw() -> void:
-	if showTop:
+	if show_top:
 		draw_rect(
 		Rect2(
-			-BORDER_SIZE + offsetX, 
-			-BORDER_SIZE + offsetY,
+			-BORDER_SIZE + offset_x, 
+			-BORDER_SIZE + offset_y,
 			width * GRID_SIZE + BORDER_SIZE * 2, 
 			height * GRID_SIZE + BORDER_SIZE * 2
-		), borderColor)
+		), border_color)
 	else:
 		draw_rect(
 		Rect2(
-			-BORDER_SIZE + offsetX, 
-			offsetY,
+			-BORDER_SIZE + offset_x, 
+			offset_y,
 			width * GRID_SIZE + BORDER_SIZE * 2, 
 			height * GRID_SIZE + BORDER_SIZE
-		), borderColor)
+		), border_color)
 
 
 	for i in range(width):
 		for j in range(height):
 			var colorIndex := (i + j) % 2
-			var currentColor := lightColor if colorIndex == 0 else darkColor
-			var posX := i * GRID_SIZE + offsetX
-			var posY := j * GRID_SIZE + offsetY
+			var currentColor := light_color if colorIndex == 0 else dark_color
+			var posX := i * GRID_SIZE + offset_x
+			var posY := j * GRID_SIZE + offset_y
 			
 			draw_rect(Rect2(posX, posY, GRID_SIZE, GRID_SIZE), currentColor)
 	
 	
-	for tile in reachableTiles:
-		var posX := tile.x * GRID_SIZE + offsetX # + padding
-		var posY := tile.y * GRID_SIZE + offsetY # + padding
+	for tile in reachable_tiles:
+		var posX := tile.x * GRID_SIZE + offset_x # + padding
+		var posY := tile.y * GRID_SIZE + offset_y # + padding
 		
 		# draw_rect(Rect2(posX, posY, GRID_SIZE - padding*2, GRID_SIZE - padding*2), Color.DARK_OLIVE_GREEN, false, padding * 2)
 		draw_rect(Rect2(posX, posY, GRID_SIZE, GRID_SIZE), Color(0.0, 0.8, 0.2, 0.5))
 	
 	
-	for tile in attackableTiles:
-		var posX := tile.x * GRID_SIZE + offsetX # + padding
-		var posY := tile.y * GRID_SIZE + offsetY # + padding
+	for tile in attackable_tiles:
+		var posX := tile.x * GRID_SIZE + offset_x # + padding
+		var posY := tile.y * GRID_SIZE + offset_y # + padding
 		
 		# draw_rect(Rect2(posX, posY, GRID_SIZE - padding*2, GRID_SIZE - padding*2), Color.DARK_OLIVE_GREEN, false, padding * 2)
 		draw_rect(Rect2(posX, posY, GRID_SIZE, GRID_SIZE), Color(0.8, 0.1, 0.2, 0.5))
 	
-	if hoveringSquare != Vector2i(-1, -1):
-		var posX := hoveringSquare.x * GRID_SIZE + offsetX + padding
-		var posY := hoveringSquare.y * GRID_SIZE + offsetY + padding
+	if hovering_square != Vector2i.MAX:
+		var posX := hovering_square.x * GRID_SIZE + offset_x + padding
+		var posY := hovering_square.y * GRID_SIZE + offset_y + padding
 		
 		draw_rect(Rect2(posX, posY, GRID_SIZE - padding*2, GRID_SIZE - padding*2), Color.BLACK, false, padding * 2)
 		
 
-func isTilePositionValid(tilePos: Vector2i) -> bool:
+func is_tile_position_valid(tilePos: Vector2i) -> bool:
 	return tilePos.x >= 0 and tilePos.y >= 0 and tilePos.x < width and tilePos.y < height
 
-func setHoveringSquare(pos: Vector2i) -> void:
+func set_hovering_square(pos: Vector2i) -> void:
 	
-	if isTilePositionValid(pos):
-		hoveringSquare = pos
+	if is_tile_position_valid(pos):
+		hovering_square = pos
 	else:
-		hoveringSquare = Vector2i(-1, -1)
+		hovering_square = Vector2i.MAX
 	
 	queue_redraw()
 
-func setReachableTiles(tiles: Array[Vector2i]) -> void:
+func set_reachable_tiles(tiles: Array[Vector2i]) -> void:
 	
-	reachableTiles = tiles.filter(isTilePositionValid)
+	reachable_tiles = tiles.filter(is_tile_position_valid)
 	queue_redraw()
 
-func setAttackableTiles(tiles: Array[Vector2i]) -> void:
+func set_attackable_tiles(tiles: Array[Vector2i]) -> void:
 	
-	attackableTiles = tiles.filter(isTilePositionValid)
+	attackable_tiles = tiles.filter(is_tile_position_valid)
 	queue_redraw()
 
-func clearInteractableTiles() -> void:
-	reachableTiles.clear()
-	attackableTiles.clear()
+func clear_interactable_tiles() -> void:
+	reachable_tiles.clear()
+	attackable_tiles.clear()
 	queue_redraw()
 
-func debugReachableTiles() -> String:
-	return "Reachable tiles: " + str(reachableTiles)
-
-func getClosestTile(pos: Vector2) -> Vector2i:
-	pos -= Vector2(offsetX, offsetY)
+func get_closest_tile(pos: Vector2) -> Vector2i:
+	pos -= Vector2(offset_x, offset_y)
 	pos /= GRID_SIZE
 	pos = pos.floor()
 	if pos.x < 0 || pos.y < 0 || pos.x >= width || pos.y >= height:
@@ -141,5 +140,5 @@ func getClosestTile(pos: Vector2) -> Vector2i:
 	
 	return pos
 
-func indexToPosition(index: Vector2) -> Vector2:
-	return index * GRID_SIZE + Vector2(offsetX, offsetY) + Vector2.ONE * GRID_SIZE / 2
+func index_to_position(index: Vector2) -> Vector2:
+	return index * GRID_SIZE + Vector2(offset_x, offset_y) + Vector2.ONE * GRID_SIZE / 2

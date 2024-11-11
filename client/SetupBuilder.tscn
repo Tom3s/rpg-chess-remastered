@@ -60,7 +60,7 @@ icon_alignment = 1
 vertical_icon_alignment = 0
 expand_icon = true
 script = ExtResource("4_7fkvw")
-pieceType = 0
+piece_type = 0
 available = 8
 
 [node name="Bishop" type="Button" parent="CanvasLayer/HBoxContainer/PanelContainer/VBoxContainer/PieceButtons"]
@@ -90,7 +90,7 @@ icon_alignment = 1
 vertical_icon_alignment = 0
 expand_icon = true
 script = ExtResource("4_7fkvw")
-pieceType = 1
+piece_type = 1
 available = 3
 
 [node name="Rook" type="Button" parent="CanvasLayer/HBoxContainer/PanelContainer/VBoxContainer/PieceButtons"]
@@ -120,7 +120,7 @@ icon_alignment = 1
 vertical_icon_alignment = 0
 expand_icon = true
 script = ExtResource("4_7fkvw")
-pieceType = 2
+piece_type = 2
 available = 3
 
 [node name="Knight" type="Button" parent="CanvasLayer/HBoxContainer/PanelContainer/VBoxContainer/PieceButtons"]
@@ -150,7 +150,7 @@ icon_alignment = 1
 vertical_icon_alignment = 0
 expand_icon = true
 script = ExtResource("4_7fkvw")
-pieceType = 3
+piece_type = 3
 available = 2
 
 [node name="Queen" type="Button" parent="CanvasLayer/HBoxContainer/PanelContainer/VBoxContainer/PieceButtons"]
@@ -180,7 +180,7 @@ icon_alignment = 1
 vertical_icon_alignment = 0
 expand_icon = true
 script = ExtResource("4_7fkvw")
-pieceType = 4
+piece_type = 4
 
 [node name="PlacedPiecesLabel" type="Label" parent="CanvasLayer/HBoxContainer/PanelContainer/VBoxContainer"]
 unique_name_in_owner = true
@@ -194,10 +194,23 @@ layout_mode = 2
 focus_mode = 0
 text = "Reset Board"
 
+[node name="RandomButton" type="Button" parent="CanvasLayer/HBoxContainer/PanelContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+focus_mode = 0
+text = "Randomize"
+
+[node name="ReadyButton" type="Button" parent="CanvasLayer/HBoxContainer/PanelContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+focus_mode = 0
+disabled = true
+text = "Ready"
+
 [node name="Board" parent="." instance=ExtResource("1_13eh5")]
 unique_name_in_owner = true
 height = 2
-showTop = false
+show_top = false
 
 [node name="Camera" type="Camera2D" parent="."]
 unique_name_in_owner = true
