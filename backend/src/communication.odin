@@ -64,89 +64,168 @@ import "core:slice"
 	current_throw: u8 (1 byte)
 */
 
-PACKET_TYPE :: enum {
+// SERVER_PACKET_TYPE :: enum {
+// 	EMPTY_PACKET, // this is here to handle empty data, should never happen
+// 	EXIT,
+// 	PLAYER_JOIN,
+// 	INIT_PLAYER_SETUP,
+// 	INIT_BOARD_STATE,
+// 	AVAILABLE_MOVE_REQUEST,
+// 	AVAILABLE_MOVES,
+// 	MOVE_PIECE,
+// 	PIECE_MOVED,
+// 	ROUND_START,
+// }
+
+// aka from server -> to client packets
+SERVER_PACKET_TYPE :: enum {
 	EMPTY_PACKET, // this is here to handle empty data, should never happen
-	EXIT,
-	PLAYER_JOIN,
-	INIT_PLAYER_SETUP,
 	INIT_BOARD_STATE,
-	AVAILABLE_MOVE_REQUEST,
 	AVAILABLE_MOVES,
-	MOVE_PIECE,
 	PIECE_MOVED,
 	ROUND_START,
 }
 
-
-// Initial_Setup :: struct {
-// 	piece_types: [NR_PIECES]PIECE_TYPE,
-// 	positions: [NR_PIECES]v2i,
-// }
-
-// Packet_Data :: union {
-// 	Initial_Setup,
-	
-// }
-
-// Packet :: struct {
-// 	type: PACKET_TYPE,
-
-// 	data: Packet_Data,
-// }
-
-Available_Move_Data :: struct {
-	player_id: i64,
-	piece_id: u8
+// aka from server -> to client packets
+CLIENT_PACKET_TYPE :: enum {
+	EMPTY_PACKET, // this is here to handle empty data, should never happen
+	EXIT,
+	PLAYER_JOIN,
+	INIT_PLAYER_SETUP,
+	AVAILABLE_MOVE_REQUEST,
+	MOVE_PIECE,
 }
 
-Piece_Moved_Data :: struct {
+Empty_Packet_Data :: struct {}
+Exit_Data :: struct {}
+Player_Join_Data :: struct {
+	id: i64,
+	color: [3]u8,
+	name: string,
+	socket: net.TCP_Socket,
+}
+Init_Player_Setup_Data :: struct {
+	player_id: i64,
+	pieces: [NR_PIECES]Piece, // u8 + 2 x u8 (NR_PIECES * 3 bytes)
+}
+Available_Move_Request_Data :: struct {
+	player_id: i64,
+	piece_id: u8,
+}
+Move_Piece_Data :: struct {
 	player_id: i64,
 	piece_id: u8,
 	target_tile: v2i,
 }
 
-Round_Start_Data :: struct {
-	player: u8,
-	current_throw: u8,
+Decoded_Packet :: union #no_nil {
+	Empty_Packet_Data,
+	Exit_Data,
+	Player_Join_Data,
+	Init_Player_Setup_Data,
+	Available_Move_Request_Data,
+	Move_Piece_Data,
 }
 
-Outbound_Packet :: struct {
-	type: PACKET_TYPE,
-	data: rawptr,
+
+
+// Available_Move_Data :: struct {
+// 	player_id: i64,
+// 	piece_id: u8
+// }
+
+// Piece_Moved_Data :: struct {
+// 	player_id: i64,
+// 	piece_id: u8,
+// 	target_tile: v2i,
+// }
+
+// Round_Start_Data :: struct {
+// 	using shared: Packet_Shared,
+// 	player: u8,
+// 	current_throw: u8,
+// 	asd: struct {
+// 		a, b, c
+// 	}
+// }
+
+// Packet_Shared :: struct {
+// 	id: int, 
+// }
+
+// Decoded_Packet :: union {
+// 	Piece_Moved_Data,
+// 	Round_Start_Data,
+// }
+
+// Decoded2 :: struct {
+// 	// kind: CLIENT_PACKET_TYPE,
+// 	kind: typeid,
+// 	value: struct #raw_union {
+		
+// 		Piece_Moved_Data,
+// 		Round_Start_Data,
+// 	}
+// }
+
+// hugy :: proc () {
+	
+// 	asdasd: Decoded_Packet;
+// 	switch a in asdasd {
+// 		case Piece_Moved_Data:
+// 			asd := &a;
+// 		}
+
+// 	is_type(Round_Start_Data, asdasd);
+// }
+
+// is_type :: proc ($T: typeid, packet: Decoded_Packet) -> bool {
+// 	_, ok := packet.(T);
+
+// 	return ok;
+// }
+
+Client_Packet :: struct {
+	// type: CLIENT_PACKET_TYPE,
+	// socket: net.TCP_Socket,
+	data: Decoded_Packet,
 }
 
-Outbound_Packet_Queue :: struct {
-	queue: [dynamic]Outbound_Packet,
+Client_Packet_Queue :: struct {
+	queue: [dynamic]Client_Packet,
 	mutex: sync.Mutex,
 }
 
-make_out_packet_queue :: proc() -> Outbound_Packet_Queue{
+make_client_packet_queue :: proc() -> Client_Packet_Queue{
 	return {
-		queue = make([dynamic]Outbound_Packet),
+		queue = make([dynamic]Client_Packet),
 	};
 }
 
-out_packet_queue_push :: proc(q: ^Outbound_Packet_Queue, packet: Outbound_Packet){
+client_packet_queue_push :: proc(q: ^Client_Packet_Queue, packet: Client_Packet){
     sync.lock(&q.mutex);
     defer sync.unlock(&q.mutex);
     
     append(&q.queue, packet);
 }
 
-out_packet_queue_has :: proc(q: ^Outbound_Packet_Queue) -> bool{
+client_packet_queue_has :: proc(q: ^Client_Packet_Queue) -> bool{
     sync.lock(&q.mutex);
     defer sync.unlock(&q.mutex);
 
     return len(q.queue) > 0;
 }
 
-out_packet_queue_pop :: proc(q: ^Outbound_Packet_Queue) -> Outbound_Packet{
+client_packet_queue_pop :: proc(q: ^Client_Packet_Queue) -> Client_Packet{
     sync.lock(&q.mutex);
     defer sync.unlock(&q.mutex);
 
-    value := q.queue[len(q.queue) - 1];
-    pop(&q.queue);
-    return value;
+    // value := q.queue[len(q.queue) - 1];
+	// value := q.queue[0];
+    // // pop(&q.queue);
+	// pop_front()
+    // return value;
+	return pop_front(&q.queue);
 }
 
 Server_Client_Data :: struct{
@@ -158,28 +237,28 @@ Server_Client_Data :: struct{
 handle_incoming_packets :: proc(client_data: rawptr){
 	scd := (cast(^Server_Client_Data) client_data)^;
 	state := scd.state;
-	free(client_data); // needed by outgoing function
+	free(client_data);
 
-	// verify player identity
-	player_join_header: [2]byte;
-	_ ,err := net.recv_tcp(scd.socket, player_join_header[:]);
+	// // verify player identity
+	// player_join_header: [2]byte;
+	// _ ,err := net.recv_tcp(scd.socket, player_join_header[:]);
 	
-	fmt.println("[communication] Received join packet");
+	// fmt.println("[communication] Received join packet");
 
-	packet_type: PACKET_TYPE = cast(PACKET_TYPE) player_join_header[0];
-	if packet_type != .PLAYER_JOIN {
-		fmt.println("[communication] Invalid player join packet type (expected: 1, got: ", packet_type, ")");
-		sync.unlock(&state.accepting_connection);
-		return;
-	}
+	// packet_type: SERVER_PACKET_TYPE = cast(SERVER_PACKET_TYPE) player_join_header[0];
+	// if packet_type != .PLAYER_JOIN {
+	// 	fmt.println("[communication] Invalid player join packet type (expected: 1, got: ", packet_type, ")");
+	// 	sync.unlock(&state.accepting_connection);
+	// 	return;
+	// }
 
-	player_join_data_len: u8 = player_join_header[1];
-	player_join_packet: []byte = make([]byte, player_join_data_len);
-	_ ,err = net.recv_tcp(scd.socket, player_join_packet[:])
+	// player_join_data_len: u8 = player_join_header[1];
+	// player_join_packet: []byte = make([]byte, player_join_data_len);
+	// _ ,err = net.recv_tcp(scd.socket, player_join_packet[:])
 
-	player_data := decode_player_join_packet(player_join_packet);
-	player_data.socket = scd.socket;
-	set_player_data(state, player_data);
+	// player_data := decode_player_join_packet(player_join_packet);
+	// player_data.socket = scd.socket;
+	// set_player_data(state, player_data);
 	
 	// This loops till our client wants to disconnect
 	for {
@@ -190,179 +269,206 @@ handle_incoming_packets :: proc(client_data: rawptr){
 			fmt.panicf("error while recieving data %s", err);
 		}
 
+		
 		// get data
-		packet_type: PACKET_TYPE = cast(PACKET_TYPE) packet_header[0];
+		packet_type: CLIENT_PACKET_TYPE = cast(CLIENT_PACKET_TYPE) packet_header[0];
 		packet_data_len: u8 = packet_header[1];
 		packet_data: []byte = make([]byte, packet_data_len);
+		fmt.println("[communication] Received packet: ", packet_type, "(len: ", packet_data_len, ")");
 		if packet_type == .EXIT {
 			fmt.println("[communication] connection ended");
 			break; // TODO: handle setting player state to disconnected
+		} else if packet_type == .PLAYER_JOIN {
+			sync.unlock(&state.accepting_connection);
 		}
 		_ ,err = net.recv_tcp(scd.socket, packet_data[:])
 		
-		decode_packet(state, packet_type, packet_data);
+		client_packet_queue_push(&state.client_packets, {
+			data = decode_packet(state, packet_type, packet_data, scd.socket),
+		});
 	}
 }
 
-handle_outgoing_packets :: proc(client_data: rawptr) {
-	scd := (cast(^Server_Client_Data) client_data)^;
-	state := scd.state;
-	free(client_data); 
+// handle_outgoing_packets :: proc(client_data: rawptr) {
+// 	scd := (cast(^Server_Client_Data) client_data)^;
+// 	state := scd.state;
+// 	free(client_data); 
 
-	request_queue: ^Outbound_Packet_Queue;
-	socket: net.TCP_Socket;
+// 	request_queue: ^Outbound_Packet_Queue;
+// 	socket: net.TCP_Socket;
 
-	if scd.player_id == state.p1.id {
-		request_queue = &state.p1.requests;
-		socket = state.p1.socket;
-	} else if scd.player_id == state.p2.id {
-		request_queue = &state.p2.requests;
-		socket = state.p2.socket;
-	} else {
-		panic("[communication] Invalid player ID for outbound packets")
-	}
+// 	if scd.player_id == state.p1.id {
+// 		request_queue = &state.p1.requests;
+// 		socket = state.p1.socket;
+// 	} else if scd.player_id == state.p2.id {
+// 		request_queue = &state.p2.requests;
+// 		socket = state.p2.socket;
+// 	} else {
+// 		panic("[communication] Invalid player ID for outbound packets")
+// 	}
 
-	for {
-		if !out_packet_queue_has(request_queue) {
-			continue;
-		}
+// 	for {
+// 		if !out_packet_queue_has(request_queue) {
+// 			continue;
+// 		}
 
-		packet := out_packet_queue_pop(request_queue);
-		packet_data: []byte = encode_packet(state, packet);
+// 		packet := out_packet_queue_pop(request_queue);
+// 		packet_data: []byte = encode_packet(state, packet);
 
-		_, err := net.send_tcp(socket, packet_data[:]);
+// 		_, err := net.send_tcp(socket, packet_data[:]);
 		
-		if err != nil {
-			// fmt.panicf("error while recieving data %s", err);
-			fmt.println("[communication] Error sending ", packet.type, " packet: ", err);
-		}
+// 		if err != nil {
+// 			// fmt.panicf("error while recieving data %s", err);
+// 			fmt.println("[communication] Error sending ", packet.type, " packet: ", err);
+// 		}
+// 	}
+// }
+
+send_packet :: proc(socket: net.TCP_Socket, data: []byte) {
+	_, err := net.send_tcp(socket, data[:]);
+		
+	if err != nil {
+		// fmt.panicf("error while recieving data %s", err);
+		fmt.println("[communication] Error sending ", cast(SERVER_PACKET_TYPE) data[0], " packet: ", err);
 	}
 }
 
-decode_player_join_packet :: proc(data: []byte) -> Player {
+decode_player_join_packet :: proc(data: []byte) -> Player_Join_Data {
 	data := data;
-	player: Player;
-	// TODO: slice.to_type(...)
-	player.id = slice.reinterpret([]i64, data[:8])[0];
-	player.color.r = cast(u8) data[8];
-	player.color.g = cast(u8) data[9];
-	player.color.b = cast(u8) data[10];
+
+	color: [3]u8;
+	color.r = cast(u8) data[8];
+	color.g = cast(u8) data[9];
+	color.b = cast(u8) data[10];
 	name_len := cast(u8) data[11];
 
-	player.name = strings.clone_from_bytes(data[12:][:name_len], context.allocator);
+	name := strings.clone_from_bytes(data[12:][:name_len], context.allocator);
 
-	return player;
+	return Player_Join_Data{
+		id = slice.to_type(data[:8], i64),
+		color = color,
+		name = name,
+	}
 }
 
-decode_packet :: proc(state: ^App_State, type: PACKET_TYPE, data: []byte) {
+decode_init_player_setup :: proc(data: []byte) -> Init_Player_Setup_Data {
+	data := data;
+
+	player_id := slice.to_type(data[:8], i64);
+	pieces: [NR_PIECES]Piece;
+	for i in 0..<NR_PIECES {
+		piece_type := cast(PIECE_TYPE) data[8 + i * 3];
+		position: v2i;
+		position.x = cast(int) cast(u8) data[8 + i * 3 + 1];
+		position.y = cast(int) cast(u8) data[8 + i * 3 + 2];
+		pieces[i] = init_piece(
+			piece_type,
+			player_id,
+			position,
+			i,
+		)
+	}
+
+	return Init_Player_Setup_Data{
+		player_id = player_id,
+		pieces = pieces,
+	}
+}
+
+decode_available_move_request :: proc(data: []byte) -> Available_Move_Request_Data {
+	data := data;
+
+	player_id := slice.to_type(data[:8], i64);
+	piece_id := cast(u8) data[8];
+
+	return Available_Move_Request_Data{
+		player_id = player_id,
+		piece_id = piece_id,
+	}
+}
+
+decode_move_piece :: proc(data: []byte) -> Move_Piece_Data {
+	data := data;
+
+	player_id := slice.to_type(data[:8], i64);
+	piece_id := cast(u8) data[8];
+
+	target_tile: v2i;
+	target_tile.x = cast(int) cast(u8) data[9];
+	target_tile.y = cast(int) cast(u8) data[10];
+
+	return Move_Piece_Data{
+		player_id = player_id,
+		piece_id = piece_id,
+		target_tile = target_tile,
+	}
+}
+
+decode_packet :: proc(state: ^App_State, type: CLIENT_PACKET_TYPE, data: []byte, socket: net.TCP_Socket) -> Decoded_Packet {
 	data := data;
 	switch (type) {
 		case .EMPTY_PACKET:
 			// TODO: handle worng packets
 		case .PLAYER_JOIN:
-			panic("[communication] Player join packet should be handled earlier");
+			player_data := decode_player_join_packet(data);
+			player_data.socket = socket;
+			return player_data;
+
 		case .EXIT:
 			panic("[communication] Exit packet should be handled earlier");
 		case .INIT_PLAYER_SETUP:
 			// TODO: slice.to_type(...)
-			player_id := slice.reinterpret([]i64, data[:8])[0];
-			pieces: [NR_PIECES]Piece;
-			for i in 0..<NR_PIECES {
-				piece_type := cast(PIECE_TYPE) data[8 + i * 3];
-				position: v2i;
-				position.x = cast(int) cast(u8) data[8 + i * 3 + 1];
-				position.y = cast(int) cast(u8) data[8 + i * 3 + 2];
-				pieces[i] = init_piece(
-					piece_type,
-					player_id,
-					position,
-					i,
-				)
-			}
-
-			add_pieces(state, player_id, pieces); 
+			return decode_init_player_setup(data);
 		
 		case .AVAILABLE_MOVE_REQUEST:
-			player_id := slice.to_type(data[:8], i64);
-			piece_id := cast(u8) data[8];
+			return decode_available_move_request(data);
 
-			// fmt.println(get_available_moves(state^, state.p1.pieces[piece_id], 6));
-			data := new(Available_Move_Data)
-			data.piece_id = piece_id
-			data.player_id = player_id
-			if player_id == state.p1.id{
-				out_packet_queue_push(&state.p1.requests, {
-					type = .AVAILABLE_MOVES,
-					data = data,
-				})
-			} else {
-				out_packet_queue_push(&state.p2.requests, {
-					type = .AVAILABLE_MOVES,
-					data = data,
-				})
-			}
 		case .MOVE_PIECE:
-			player_id := slice.to_type(data[:8], i64);
-			piece_id := cast(u8) data[8];
-
-			target_tile: v2i;
-			target_tile.x = cast(int) cast(u8) data[9];
-			target_tile.y = cast(int) cast(u8) data[10];
-
-			move_piece(state, player_id, piece_id, target_tile);
-
-		case .INIT_BOARD_STATE: fallthrough
-		case .PIECE_MOVED: fallthrough
-		case .ROUND_START: fallthrough
-		case .AVAILABLE_MOVES:
-			fmt.println("[communication] Server shouldn't receive ", type, " packet!");
-			panic("")
-		
-
+			return decode_move_piece(data);
 	}
-
+	return {};
 }
 
-encode_packet :: proc(state: ^App_State, packet: Outbound_Packet) -> []byte{
-	switch (packet.type) {
-		case .EMPTY_PACKET: fallthrough
-		case .EXIT: fallthrough
-		case .INIT_PLAYER_SETUP: fallthrough
-		case .AVAILABLE_MOVE_REQUEST: fallthrough
-		case .MOVE_PIECE: fallthrough
-		case .PLAYER_JOIN: 
-			fmt.println("[communication] Server shouldn't send ", packet.type, " packets!");
-			panic("");
-			// return []byte{};
-		case .INIT_BOARD_STATE:
-			return encode_init_board_state(state);
-		case .AVAILABLE_MOVES:
-			data := (cast(^Available_Move_Data) packet.data)^;
-			piece_id := data.piece_id;
-			player_id := data.player_id;
-			free(packet.data);
+// encode_packet :: proc(state: ^App_State, packet: Outbound_Packet) -> []byte{
+// 	switch (packet.type) {
+// 		case .EMPTY_PACKET: fallthrough
+// 		case .EXIT: fallthrough
+// 		case .INIT_PLAYER_SETUP: fallthrough
+// 		case .AVAILABLE_MOVE_REQUEST: fallthrough
+// 		case .MOVE_PIECE: fallthrough
+// 		case .PLAYER_JOIN: 
+// 			fmt.println("[communication] Server shouldn't send ", packet.type, " packets!");
+// 			panic("");
+// 			// return []byte{};
+// 		case .INIT_BOARD_STATE:
+// 			return encode_init_board_state(state);
+// 		case .AVAILABLE_MOVES:
+// 			data := (cast(^Available_Move_Data) packet.data)^;
+// 			piece_id := data.piece_id;
+// 			player_id := data.player_id;
+// 			free(packet.data);
 
-			fmt.println("[communication] Player with ID ", player_id, " requested moves for piece ", piece_id);
+// 			fmt.println("[communication] Player with ID ", player_id, " requested moves for piece ", piece_id);
 
-			return encode_available_moves(state^, player_id, piece_id);
-		case .PIECE_MOVED:
-			data := (cast(^Piece_Moved_Data) packet.data)^;
-			piece_id := data.piece_id;
-			player_id := data.player_id;
-			target_tile := data.target_tile;
-			free(packet.data);
+// 			return encode_available_moves(state^, player_id, piece_id);
+// 		case .PIECE_MOVED:
+// 			data := (cast(^Piece_Moved_Data) packet.data)^;
+// 			piece_id := data.piece_id;
+// 			player_id := data.player_id;
+// 			target_tile := data.target_tile;
+// 			free(packet.data);
 
-			return encode_piece_moved(state^, player_id, piece_id, target_tile);
-		case .ROUND_START:
-			data := (cast(^Round_Start_Data) packet.data)^;
-			player := data.player;
-			throw := data.current_throw;
-			free(packet.data);
+// 			return encode_piece_moved(state^, player_id, piece_id, target_tile);
+// 		case .ROUND_START:
+// 			data := (cast(^Round_Start_Data) packet.data)^;
+// 			player := data.player;
+// 			throw := data.current_throw;
+// 			free(packet.data);
 
-			return encode_round_start(player, throw);
-	}
-	panic("Illegal state")
-}
+// 			return encode_round_start(player, throw);
+// 	}
+// 	panic("Illegal state")
+// }
 
 encode_init_board_state :: proc(state: ^App_State) -> []byte {
 	// TODO: i have some wrong indexings
@@ -376,7 +482,7 @@ encode_init_board_state :: proc(state: ^App_State) -> []byte {
 	packet_data := make([dynamic]byte, 2);
 
 	// header
-	packet_data[0] = cast(byte) PACKET_TYPE.INIT_BOARD_STATE;
+	packet_data[0] = cast(byte) SERVER_PACKET_TYPE.INIT_BOARD_STATE;
 	// packet_data[1] = cast(byte) len(packet_data) - 2;
 
 	// copy_slice(packet_data[2:2+8], bytes_of(&state.p1.id));
@@ -415,9 +521,9 @@ encode_init_board_state :: proc(state: ^App_State) -> []byte {
 
 encode_available_moves :: proc(state: App_State, player_id: i64, piece_id: u8) -> []byte {
 	packet_data := make([dynamic]byte, 2);
-	packet_data[0] = cast(byte) PACKET_TYPE.AVAILABLE_MOVES;
+	packet_data[0] = cast(byte) SERVER_PACKET_TYPE.AVAILABLE_MOVES;
 
-	moves: [dynamic]Action;
+	moves: []Action;
 	if player_id == state.p1.id {
 		moves = get_available_moves(state, state.p1.pieces[piece_id], state.current_throw);
 	} else {
@@ -433,28 +539,35 @@ encode_available_moves :: proc(state: App_State, player_id: i64, piece_id: u8) -
 
 	packet_data[1] = cast(byte) len(packet_data) - 2;
 
+	fmt.println("[communication] Moves for ", player_id, ", piece ", piece_id, moves);
+
 	return slice.reinterpret([]byte, packet_data[:]);
 }
 
-encode_piece_moved :: proc(state: App_State, player_id: i64, piece_id: u8, target_tile: v2i) -> []byte {
+encode_piece_moved :: proc(state: App_State, data: Move_Piece_Data) -> []byte {
 	packet_data := make([dynamic]byte, 2);
-	packet_data[0] = cast(byte) PACKET_TYPE.PIECE_MOVED;
+	packet_data[0] = cast(byte) SERVER_PACKET_TYPE.PIECE_MOVED;
 
-	player_id := player_id;
-	append_elems(&packet_data, ..bytes_of(&player_id));
+	// player_id := player_id;
+	data := data;
+	append_elems(&packet_data, ..bytes_of(&data.player_id));
 
-	append(&packet_data, cast(u8) piece_id);
-	append(&packet_data, cast(u8) target_tile.x);
-	append(&packet_data, cast(u8) target_tile.y);
+	append(&packet_data, cast(u8) data.piece_id);
+	append(&packet_data, cast(u8) data.target_tile.x);
+	append(&packet_data, cast(u8) data.target_tile.y);
 
 	packet_data[1] = cast(byte) len(packet_data) - 2;
 
 	return slice.reinterpret([]byte, packet_data[:]);
 }
 
-encode_round_start :: proc(player: u8, throw: u8) -> []byte {
+encode_round_start :: proc(state: App_State) -> []byte {
+	// player: u8, throw: u8
+	player := cast(u8) state.current_player;
+	throw := cast(u8) state.current_throw;
+
 	packet_data := make([dynamic]byte, 2);
-	packet_data[0] = cast(byte) PACKET_TYPE.ROUND_START;
+	packet_data[0] = cast(byte) SERVER_PACKET_TYPE.ROUND_START;
 
 	append(&packet_data, player);
 	append(&packet_data, throw);

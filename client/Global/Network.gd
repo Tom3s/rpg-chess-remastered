@@ -15,17 +15,36 @@ var p1_id: int
 var p2_id: int
 
 
-enum PACKET_TYPE {
-	EMPTY_PACKET,
-	EXIT,
-	PLAYER_JOIN,
-	INITIAL_SETUP,
+# enum PACKET_TYPE {
+# 	EMPTY_PACKET,
+# 	EXIT,
+# 	PLAYER_JOIN,
+# 	INITIAL_SETUP,
+# 	INIT_BOARD_STATE,
+# 	AVAILABLE_MOVE_REQUEST,
+# 	AVAILABLE_MOVES,
+# 	MOVE_PIECE,
+# 	PIECE_MOVED,
+# 	ROUND_START,
+# }
+
+# aka from server -> to client packets
+enum SERVER_PACKET_TYPE {
+	EMPTY_PACKET, #this is here to handle empty data, should never happen
 	INIT_BOARD_STATE,
-	AVAILABLE_MOVE_REQUEST,
 	AVAILABLE_MOVES,
-	MOVE_PIECE,
 	PIECE_MOVED,
 	ROUND_START,
+}
+
+# aka from server -> to client packets
+enum CLIENT_PACKET_TYPE {
+	EMPTY_PACKET, #this is here to handle empty data, should never happen
+	EXIT,
+	PLAYER_JOIN,
+	INIT_PLAYER_SETUP,
+	AVAILABLE_MOVE_REQUEST,
+	MOVE_PIECE,
 }
 
 var socket: StreamPeerTCP = null
@@ -125,7 +144,7 @@ func _notification(what: int) -> void:
 func send_player_join_packet() -> void:
 	var player_data := PackedByteArray()
 	player_data.resize(14)
-	player_data.encode_u8(0, PACKET_TYPE.PLAYER_JOIN)
+	player_data.encode_u8(0, CLIENT_PACKET_TYPE.PLAYER_JOIN)
 	player_data.encode_u8(1, 12 + main_player.name.length())
 	player_data.encode_s64(2, main_player.id)
 	player_data.encode_u8(10, main_player.color.r8)
@@ -141,7 +160,7 @@ func send_player_join_packet() -> void:
 func send_exit_packet() -> void:
 	var packet := PackedByteArray()
 	packet.resize(2)
-	packet.encode_u8(0, PACKET_TYPE.EXIT)
+	packet.encode_u8(0, CLIENT_PACKET_TYPE.EXIT)
 	packet.encode_u8(1, 0)
 
 	socket.put_data(packet)
@@ -149,7 +168,7 @@ func send_exit_packet() -> void:
 func send_inital_setup_packet(pieceParent: Node2D) -> void:
 	var init_setup_data := PackedByteArray()
 	init_setup_data.resize(8 + GlobalNames.NR_PIECES * 3 + 2)
-	init_setup_data.encode_u8(0, Network.PACKET_TYPE.INITIAL_SETUP)
+	init_setup_data.encode_u8(0, CLIENT_PACKET_TYPE.INIT_PLAYER_SETUP)
 	init_setup_data.encode_u8(1, 8 + GlobalNames.NR_PIECES * 3)
 	init_setup_data.encode_s64(2, main_player.id)
 
@@ -171,7 +190,7 @@ func send_move_piece_packet(piece_id: int, target: Vector2i) -> void:
 	var packet_data := PackedByteArray()
 	packet_data.resize(2 + 8 + 1 + 2)
 
-	packet_data.encode_u8(0, PACKET_TYPE.MOVE_PIECE)
+	packet_data.encode_u8(0, CLIENT_PACKET_TYPE.MOVE_PIECE)
 	packet_data.encode_u8(1, 8 + 1 + 2)
 
 	packet_data.encode_s64(2, main_player.id)
@@ -190,7 +209,7 @@ func request_available_moves(piece_id: int) -> void:
 	var packet_data := PackedByteArray()
 	packet_data.resize(2 + 8 + 1)
 
-	packet_data.encode_u8(0, PACKET_TYPE.AVAILABLE_MOVE_REQUEST)
+	packet_data.encode_u8(0, CLIENT_PACKET_TYPE.AVAILABLE_MOVE_REQUEST)
 	packet_data.encode_u8(1, 8 + 1)
 
 	packet_data.encode_s64(2, main_player.id)
@@ -216,10 +235,10 @@ func receive_packet() -> void:
 	# this is a bad solution from godot's part
 	# i know it's explained in the docs, but it wasn't clear until i printed the generic Array
 
-	var packet_type: PACKET_TYPE = header[0] as PACKET_TYPE
+	var packet_type: SERVER_PACKET_TYPE = header[0] as SERVER_PACKET_TYPE
 	var packet_len: int = header[1]
 
-	print("[Network.gd] Received ", PACKET_TYPE.keys()[packet_type], " packet (", packet_len, " bytes)")
+	print("[Network.gd] Received ", SERVER_PACKET_TYPE.keys()[packet_type], " packet (", packet_len, " bytes)")
 
 	result = socket.get_data(packet_len)
 	_error = result[0]
@@ -228,9 +247,9 @@ func receive_packet() -> void:
 
 	decode_packet(packet_type, data)
 
-func decode_packet(packet_type: PACKET_TYPE, data: PackedByteArray) -> void:
+func decode_packet(packet_type: SERVER_PACKET_TYPE, data: PackedByteArray) -> void:
 	match packet_type:
-		PACKET_TYPE.INIT_BOARD_STATE:
+		SERVER_PACKET_TYPE.INIT_BOARD_STATE:
 			p1_id = data.decode_s64(0)
 			var p1_pieces: Array[Piece]
 			for i in GlobalNames.NR_PIECES:
@@ -259,7 +278,7 @@ func decode_packet(packet_type: PACKET_TYPE, data: PackedByteArray) -> void:
 			GlobalNames.initial_board_data = [p1_pieces, p2_pieces]
 			# get_tree().change_scene_to_file("res://GameScene.tscn")
 		
-		PACKET_TYPE.AVAILABLE_MOVES:
+		SERVER_PACKET_TYPE.AVAILABLE_MOVES:
 			var nr_moves: int = data.decode_u8(0)
 
 			var moves: Array[Vector2i] = []
@@ -274,7 +293,7 @@ func decode_packet(packet_type: PACKET_TYPE, data: PackedByteArray) -> void:
 			# call_deferred(available_moves_received.emit.bind(moves))
 			call_deferred("emit_signal", "available_moves_received", moves)
 
-		PACKET_TYPE.PIECE_MOVED:
+		SERVER_PACKET_TYPE.PIECE_MOVED:
 			var player_id: int = data.decode_s64(0)
 			var piece_id: int = data.decode_u8(8)
 
@@ -285,7 +304,7 @@ func decode_packet(packet_type: PACKET_TYPE, data: PackedByteArray) -> void:
 			# piece_moved.emit(player_id, piece_id, target_tile)
 			call_deferred("emit_signal", "piece_moved", player_id, piece_id, target_tile)
 
-		PACKET_TYPE.ROUND_START:
+		SERVER_PACKET_TYPE.ROUND_START:
 			var player: int = data.decode_u8(0)
 			var throw: int = data.decode_u8(8)
 

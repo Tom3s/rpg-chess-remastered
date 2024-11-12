@@ -9,9 +9,6 @@ import "core:thread"
 import "core:net"
 import "core:sync"
 
-// import "core:time"
-
-
 Player :: struct {
 	connected: bool,
 	id: i64,
@@ -19,11 +16,11 @@ Player :: struct {
 	color: [3]u8,
 
 	pieces: [NR_PIECES]Piece,
+	dice: [6]int,
 
 	ready: bool,
 
 	socket: net.TCP_Socket,
-	requests: Outbound_Packet_Queue,
 }
 
 NR_PIECES :: 14;
@@ -33,9 +30,7 @@ App_State :: struct {
 	mutex: sync.Mutex,
 	accepting_connection: sync.Mutex,
 
-	// p1.requests: Outbound_Packet_Queue,
-	// p2.requests: Outbound_Packet_Queue,
-	
+	client_packets: Client_Packet_Queue,
 
 	current_player: u8,
 	current_throw: int,
@@ -44,11 +39,8 @@ App_State :: struct {
 	p1: Player,
 	p2: Player,
 
-	// p1.pieces: [NR_PIECES]Piece,
-	// p2.pieces: [NR_PIECES]Piece,
-
-	p1dice: [6]int,
-	p2dice: [6]int,
+	// p1.dice: [6]int,
+	// p2.dice: [6]int,
 
 }
 
@@ -59,32 +51,40 @@ reset_dice :: proc(dice: ^[6]int) {
 }
 
 init_app_state :: proc(state: ^App_State) {
-	reset_dice(&state.p1dice);
-	reset_dice(&state.p2dice);
+	reset_dice(&state.p1.dice);
+	reset_dice(&state.p2.dice);
 
-	state.p1.requests = make_out_packet_queue();
-	state.p2.requests = make_out_packet_queue();
+	state.client_packets = make_client_packet_queue();
 
 	state.current_player = 1;
+}
+
+get_player_with_id :: proc(state: ^App_State, id: i64) -> ^Player {
+	if id == state.p1.id {
+		return &state.p1;
+	} else if id == state.p2.id {
+		return &state.p2;
+	}
+	panic("[main] Invalid player id");
 }
 
 get_next_dice_throw :: proc(state: ^App_State) -> int {
 	throw: int = -1;
 
-	if state.p1dice[5] == -1 do reset_dice(&state.p1dice);
-	if state.p2dice[5] == -1 do reset_dice(&state.p2dice);
+	if state.p1.dice[5] == -1 do reset_dice(&state.p1.dice);
+	if state.p2.dice[5] == -1 do reset_dice(&state.p2.dice);
 
 	for i in 0..<6 {
 		if state.current_player == 0 {
-			if state.p1dice[i] != -1 {
-				throw = state.p1dice[i];
-				state.p1dice[i] = -1;
+			if state.p1.dice[i] != -1 {
+				throw = state.p1.dice[i];
+				state.p1.dice[i] = -1;
 				return throw;
 			}
 		} else {
-			if state.p2dice[i] != -1 {
-				throw = state.p2dice[i];
-				state.p2dice[i] = -1;
+			if state.p2.dice[i] != -1 {
+				throw = state.p2.dice[i];
+				state.p2.dice[i] = -1;
 				return throw;
 			}
 		}
@@ -92,20 +92,18 @@ get_next_dice_throw :: proc(state: ^App_State) -> int {
 	return -1;
 }
 
-add_pieces :: proc(state: ^App_State, playerid: i64, pieces: [NR_PIECES]Piece) {
-	sync.lock(&state.mutex);
-	defer sync.unlock(&state.mutex);
+add_pieces :: proc(state: ^App_State, data: Init_Player_Setup_Data) {
+	player_id := data.player_id;
+	pieces := data.pieces;
 
-	pieces := pieces
-
-	if playerid == state.p1.id {
+	if player_id == state.p1.id {
 		for &piece in pieces {
 			piece.position.y = piece.position.y + BOARD_SIZE - 2;
 			state.p1.pieces[piece.id] = piece;
 			state.board[piece.position.y][piece.position.x] = &state.p1.pieces[piece.id];
 		}
 		state.p1.ready = true;
-	} else if playerid == state.p2.id {
+	} else if player_id == state.p2.id {
 		for &piece in pieces {
 			piece.position.y = 1 - piece.position.y;
 			piece.position.x = BOARD_SIZE - piece.position.x - 1;
@@ -118,18 +116,21 @@ add_pieces :: proc(state: ^App_State, playerid: i64, pieces: [NR_PIECES]Piece) {
 	}
 }
 
-set_player_data :: proc(state: ^App_State, player: Player) {
-	// sync.lock(&state.mutex);
-    defer sync.unlock(&state.accepting_connection);
+set_player_data :: proc(state: ^App_State, data: Player_Join_Data) {
+	player: Player;
+	player.id = data.id;
+	player.color = data.color;
+	player.name = data.name;
+	player.socket = data.socket;
 
 	if !state.p1.connected {
+		player.dice = state.p1.dice;
 		state.p1 = player;
 		state.p1.connected = true;
-		fmt.println(state.p1);
 	} else if !state.p2.connected {
+		player.dice = state.p2.dice;
 		state.p2 = player;
 		state.p2.connected = true;
-		fmt.println(state.p2);
 	}
 }
 
@@ -173,71 +174,67 @@ all_players_ready :: proc(state: App_State) -> bool {
 	return state.p1.ready && state.p2.ready;
 }
 
-move_piece :: proc(state: ^App_State, player_id: i64, piece_id: u8, target_tile: v2i) {
-	player: ^Player;
-	if player_id == state.p1.id {
-		player = &state.p1;
-	} else {
-		player = &state.p2;
-	}
+move_piece :: proc(state: ^App_State, data: Move_Piece_Data) {
+	// player_id: i64, piece_id: u8, target_tile: v2i
+	player := get_player_with_id(state, data.player_id);
+
+	piece_id := data.piece_id;
+	target_tile := data.target_tile;
 
 	piece := &player.pieces[piece_id];
-	fmt.println("Old piece", piece);
 	state.board[piece.position.y][piece.position.x] = nil;
 	piece.position = target_tile;
-	fmt.println("New piece", piece);
 	state.board[piece.position.y][piece.position.x] = piece;
 
 	print_board(state^);
 
-	data := new(Piece_Moved_Data)
-	data.player_id = player_id;
-	data.piece_id = piece_id;
-	data.target_tile = target_tile;
+	// data := new(Piece_Moved_Data)
+	// data.player_id = player_id;
+	// data.piece_id = piece_id;
+	// data.target_tile = target_tile;
 	
-	out_packet_queue_push(&state.p1.requests,
-		{
-			type = .PIECE_MOVED,
-			data = data,
-		}
-	)
-	data2 := new(Piece_Moved_Data)
-	data2.player_id = player_id;
-	data2.piece_id = piece_id;
-	data2.target_tile = target_tile;
-	out_packet_queue_push(&state.p2.requests,
-		{
-			type = .PIECE_MOVED,
-			data = data2,
-		}
-	)
+	// out_packet_queue_push(&state.p1.requests,
+	// 	{
+	// 		type = .PIECE_MOVED,
+	// 		data = data,
+	// 	}
+	// )
+	// data2 := new(Piece_Moved_Data)
+	// data2.player_id = player_id;
+	// data2.piece_id = piece_id;
+	// data2.target_tile = target_tile;
+	// out_packet_queue_push(&state.p2.requests,
+	// 	{
+	// 		type = .PIECE_MOVED,
+	// 		data = data2,
+	// 	}
+	// )
 
-	start_round(state);
 }
 
 start_round :: proc(state: ^App_State) {
 	state.current_player = (state.current_player + 1) % 2;
 	state.current_throw = get_next_dice_throw(state);
 
-	data := new(Round_Start_Data);
-	data.player = state.current_player;
-	data.current_throw = cast(u8) state.current_throw;
-	out_packet_queue_push(&state.p1.requests,
-		{
-			type = .ROUND_START,
-			data = data,
-		}
-	)
+	// data := new(Round_Start_Data);
+	// data.player = state.current_player;
+	// data.current_throw = cast(u8) state.current_throw;
+	// out_packet_queue_push(&state.p1.requests,
+	// 	{
+	// 		type = .ROUND_START,
+	// 		data = data,
+	// 	}
+	// )
 
-	data2 := new(Round_Start_Data);
-	data2.player = state.current_player;
-	data2.current_throw = cast(u8) state.current_throw;
-	out_packet_queue_push(&state.p2.requests,
-		{
-			type = .ROUND_START,
-			data = data2,
-		}
-	)
+	// data2 := new(Round_Start_Data);
+	// data2.player = state.current_player;
+	// data2.current_throw = cast(u8) state.current_throw;
+	// out_packet_queue_push(&state.p2.requests,
+	// 	{
+	// 		type = .ROUND_START,
+	// 		data = data2,
+	// 	}
+	// )
 }
 
 ENDPOINT := net.Endpoint{address = net.IP4_Address{0, 0, 0, 0}, port = 4000};
@@ -251,21 +248,21 @@ main :: proc() {
 
 	listener, err := net.listen_tcp(ENDPOINT);
 	if err != nil{
-		fmt.println("Error at lisetner start", err);
+		fmt.println("[main] Error at lisetner start", err);
 		panic("");
 	}
 
-	for {
-		sync.lock(&state.accepting_connection);
-		if all_players_initialized(state) {
-			break;
-		}
+	for i in 0..<2{
+		// sync.lock(&state.accepting_connection);
+		// if all_players_initialized(state) {
+		// 	break;
+		// }
 		client_socket, endpoint, err := net.accept_tcp(listener);
 		if err != nil{
-			fmt.println("Error at accepting clients", err);
+			fmt.println("[main] Error at accepting clients", err);
 			panic("");
 		}
-		fmt.println("Got connection: ", endpoint);
+		fmt.println("[main] Got connection: ", endpoint);
 		
 		scd := new(Server_Client_Data);
 		scd.socket = client_socket;
@@ -274,64 +271,104 @@ main :: proc() {
 		// thread.create_and_start_with_data(scd, handle_outgoing_packets);
 	}
 
-	scd1 := new(Server_Client_Data);
-	scd1.player_id = state.p1.id;
-	scd1.state = &state;
-	thread.create_and_start_with_data(scd1, handle_outgoing_packets);
+	fmt.println("[main] All Players connected (1/3)");
 
-	scd2 := new(Server_Client_Data);
-	scd2.player_id = state.p2.id;
-	scd2.state = &state;
-	thread.create_and_start_with_data(scd2, handle_outgoing_packets);
+	for !all_players_initialized(state){
+		if client_packet_queue_has(&state.client_packets) {
+			packet := client_packet_queue_pop(&state.client_packets);
+			decoded_packet := packet.data;
 
-
-
-
-	for {
-		sync.lock(&state.mutex);
-		defer sync.unlock(&state.mutex);
-
-		if all_players_ready(state) do break;
+			#partial switch data in decoded_packet {
+				case Player_Join_Data:
+					set_player_data(&state, data);
+				case Init_Player_Setup_Data:
+					client_packet_queue_push(&state.client_packets, packet);
+			}
+		}
 	}
+
+	fmt.println("[main] All Players initialized (2/3)");
+
+
+	for !all_players_ready(state) {
+		if client_packet_queue_has(&state.client_packets) {
+			packet := client_packet_queue_pop(&state.client_packets);
+			decoded_packet := packet.data;
+
+			#partial switch data in decoded_packet {
+				case Init_Player_Setup_Data:
+					add_pieces(&state, data);
+			}
+		}
+
+	}
+
+	fmt.println("[main] All Players ready (3/3)");
 
 	print_board(state);
 
-
-
-	out_packet_queue_push(&state.p1.requests, {
-		type = .INIT_BOARD_STATE,
-		data = nil,
-	})
-	out_packet_queue_push(&state.p2.requests, {
-		type = .INIT_BOARD_STATE,
-		data = nil,
-	})
-
+	
+	init_board_packet := encode_init_board_state(&state);
+	send_packet(state.p1.socket, init_board_packet);
+	send_packet(state.p2.socket, init_board_packet);
+	
 	start_round(&state);
 
+	init_round_start_packet := encode_round_start(state);
+
+	send_packet(state.p1.socket, init_round_start_packet);
+	send_packet(state.p2.socket, init_round_start_packet);
+	
 	// time.sleep(cast(time.Duration) seconds_to_sleep * time.Second);
 
 	for {
-		
+		// TODO: "frame" allocator
+		// handle inbound packets
+		for client_packet_queue_has(&state.client_packets){
+			packet := client_packet_queue_pop(&state.client_packets);
+			decoded_packet := packet.data;
+			// append(&decoded_packet_datas, decoded_packet);
+			// update state	
+			switch data in decoded_packet {
+				case Player_Join_Data:
+					fmt.println("[main] Player join should be handled earlier!")
+					// set_player_data(&state, data);
+
+				case Init_Player_Setup_Data:
+					fmt.println("[main] Init setup should be handled earlier!")
+
+					// add_pieces(&state, data);
+				
+				case Available_Move_Request_Data:
+					player := get_player_with_id(&state, data.player_id);
+					moves_packet := encode_available_moves(state, data.player_id, data.piece_id);
+
+					send_packet(player.socket, moves_packet);
+				
+				case Move_Piece_Data:
+					move_piece(&state, data);
+
+					piece_moved_packet := encode_piece_moved(state, data);
+
+					send_packet(state.p1.socket, piece_moved_packet);
+					send_packet(state.p2.socket, piece_moved_packet);
+
+					start_round(&state);
+
+					round_start_packet := encode_round_start(state);
+
+					send_packet(state.p1.socket, round_start_packet);
+					send_packet(state.p2.socket, round_start_packet);
+
+				
+				case Empty_Packet_Data:
+					fmt.println("[main] Empty packet huh?")
+				case Exit_Data:
+					fmt.println("[main] Player disconnected")
+
+			}
+		}
+		// send new data to clients
 	}
-	// for i in 0..<24{
-	// 	// get input
-
-	// 	// buf: [256]byte
-	// 	// fmt.println("Press enter:")
-	// 	// n, err := os.read(os.stdin, buf[:])
-	// 	// if err != nil {
-	// 	// 	fmt.eprintln("Error reading: ", err)
-	// 	// 	return
-	// 	// }
-	// 	// str := string(buf[:n])
-		
-	// 	// update game logic
-	// 	current_throw := get_next_dice_throw(&state);
-	// 	fmt.println("Player ", state.current_player+1, ": ", current_throw);
-
-	// 	state.current_player = (state.current_player + 1) % 2;
-	// 	// broadcast changes
-	// }
 }
 

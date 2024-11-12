@@ -1,6 +1,8 @@
 package main
 
+import "core:fmt"
 import "core:strings"
+import "core:slice"
 
 PIECE_TYPE :: enum {
 	PAWN, 
@@ -106,8 +108,9 @@ get_piece_icon :: proc(piece: Piece) -> string {
 // 	case .QUEEN:
 // } 
 
-get_available_moves :: proc(state: App_State, piece: Piece, cost: int) -> [dynamic]Action {
+get_available_moves :: proc(state: App_State, piece: Piece, cost: int) -> []Action {
 	moves := make([dynamic]Action);
+	defer delete(moves);
 	
 	up: v2i = {0, 1};
 	down: v2i = {0, -1};
@@ -119,6 +122,8 @@ get_available_moves :: proc(state: App_State, piece: Piece, cost: int) -> [dynam
 	up_right: v2i = {1, 1};
 	down_right: v2i = {1, -1};
 	
+	fmt.println("current move cost limit: ", cost);
+
 	switch (piece.type) {
 		case .PAWN:
 			for i in 1..=cost {
@@ -239,7 +244,7 @@ get_available_moves :: proc(state: App_State, piece: Piece, cost: int) -> [dynam
 				{-2, 1},
 			}
 
-			for i in 1..<4 {
+			for i in 0..<4 {
 				move := piece.position + knight_moves[i];
 				if valid_move(state, move) {
 					append(&moves, Action{
@@ -347,7 +352,7 @@ get_available_moves :: proc(state: App_State, piece: Piece, cost: int) -> [dynam
 				} else do break;
 			}
 	} 
-	return moves;
+	return slice.reinterpret([]Action, moves[:]);
 }
 
 @private
