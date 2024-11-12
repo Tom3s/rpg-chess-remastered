@@ -10,6 +10,8 @@ class_name PlayerSelect
 func _ready() -> void:
 	playerIdLabel.text = "Session ID: " + str(Network.main_player.id)
 
+	playerColorPicker.color = Network.main_player.color
+
 	playerNameEdit.text_changed.connect(func(text: String) -> void:
 		Network.main_player.name = text
 	)

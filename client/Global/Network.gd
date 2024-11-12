@@ -55,7 +55,7 @@ var socket: StreamPeerTCP = null
 
 # region Signals
 
-# signal initial_board_setup_received()
+signal initial_board_state_received(state: Array)
 signal available_actions_received(moves: Array[Vector2i], attacks: Array[Vector2i])
 signal piece_moved(player_id: int, piece_id: int, target_tile: Vector2i)
 signal piece_attacked(player_id: int, piece_id: int, target_piece_id: int, new_hp: int, landing_tile: Vector2i)
@@ -66,6 +66,7 @@ var incoming_thread: Thread
 func _ready() -> void:
 	# TODO: proper player handling and ID
 	main_player.id = randi()
+	main_player.color = Color(randf(), randf(), randf())
 	print("[Network.gd] Global script loaded")
 
 func _process(_delta: float) -> void:
@@ -292,7 +293,8 @@ func decode_packet(packet_type: SERVER_PACKET_TYPE, data: PackedByteArray) -> vo
 				piece.owner_player = p2_id
 				p2_pieces.push_back(piece)
 			
-			GlobalNames.initial_board_data = [p1_pieces, p2_pieces]
+			# GlobalNames.initial_board_data = [p1_pieces, p2_pieces]
+			call_deferred("emit_signal", "initial_board_state_received", [p1_pieces, p2_pieces])
 			# get_tree().change_scene_to_file("res://GameScene.tscn")
 		
 		SERVER_PACKET_TYPE.AVAILABLE_ACTIONS:
@@ -357,7 +359,7 @@ func decode_packet(packet_type: SERVER_PACKET_TYPE, data: PackedByteArray) -> vo
 
 		SERVER_PACKET_TYPE.ROUND_START:
 			var player: int = data.decode_u8(0)
-			var throw: int = data.decode_u8(8)
+			var throw: int = data.decode_u8(1)
 
 			call_deferred("emit_signal", "round_started", player, throw)
 		# _:

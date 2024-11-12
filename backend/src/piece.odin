@@ -127,7 +127,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 	up_right: v2i = {1, 1};
 	down_right: v2i = {1, -1};
 	
-	fmt.println("current move cost limit: ", cost);
+	// fmt.println("current move cost limit: ", cost);
 
 	switch (piece.type) {
 		case .PAWN:
@@ -160,7 +160,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 			}
 			for attack in pawn_attacks {
 				move := piece.position + attack;
-				if valid_attack(state, move, piece.owner) {
+				if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -178,7 +178,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					});
-				} else if valid_attack(state, move, piece.owner) {
+				} else if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -196,7 +196,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					});
-				} else if valid_attack(state, move, piece.owner) {
+				} else if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -213,7 +213,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					});
-				} else if valid_attack(state, move, piece.owner) {
+				} else if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -231,7 +231,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					});
-				} else if valid_attack(state, move, piece.owner) {
+				} else if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -250,7 +250,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					});
-				} else if valid_attack(state, move, piece.owner) {
+				} else if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -268,7 +268,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					});
-				} else if valid_attack(state, move, piece.owner) {
+				} else if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -286,7 +286,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					});
-				} else if valid_attack(state, move, piece.owner) {
+				} else if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -304,7 +304,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					});
-				} else if valid_attack(state, move, piece.owner) {
+				} else if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -329,7 +329,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = 1,
 					});
-				} else if valid_attack(state, move, piece.owner) {
+				} else if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -344,7 +344,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = 1,
 					});
-				} else if valid_attack(state, move, piece.owner) {
+				} else if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -362,7 +362,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					});
-				} else if valid_attack(state, move, piece.owner) {
+				} else if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -380,7 +380,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					});
-				} else if valid_attack(state, move, piece.owner) {
+				} else if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -397,7 +397,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					});
-				} else if valid_attack(state, move, piece.owner) {
+				} else if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -415,7 +415,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					});
-				} else if valid_attack(state, move, piece.owner) {
+				} else if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -433,7 +433,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					});
-				} else if valid_attack(state, move, piece.owner) {
+				} else if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -451,7 +451,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					});
-				} else if valid_attack(state, move, piece.owner) {
+				} else if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -469,7 +469,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					});
-				} else if valid_attack(state, move, piece.owner) {
+				} else if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -487,7 +487,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					});
-				} else if valid_attack(state, move, piece.owner) {
+				} else if valid_attack(state, move, piece.owner, cost) {
 					append(&moves, Action{
 						type = .ATTACK,
 						target_tile = move,
@@ -514,7 +514,8 @@ valid_move :: proc(state: App_State, move: v2i) -> bool {
 }
 
 @private
-valid_attack :: proc(state: App_State, move: v2i, piece_owner: i64) -> bool {
+valid_attack :: proc(state: App_State, move: v2i, piece_owner: i64, cost: int) -> bool {
+	if cost < 4 do return false;
 	if move.x < 0 || move.x >= BOARD_SIZE do return false;
 	if move.y < 0 || move.y >= BOARD_SIZE do return false;
 
@@ -527,7 +528,7 @@ damage_piece :: proc(state: ^App_State, target_piece, attacking_piece: ^Piece) -
 	fmt.println("[piece] ", attacking_piece, " is attacking ", target_piece);
 	target_piece.health -= attacking_piece.damage;
 
-	landing_tile := get_landing_tile(target_piece^, attacking_piece^);
+	landing_tile := get_landing_tile(state, target_piece^, attacking_piece^);
 	if target_piece.health <= 0 {
 		kill_piece(state, target_piece);
 		landing_tile = target_piece.position;
@@ -544,6 +545,38 @@ kill_piece :: proc(state: ^App_State, target_piece: ^Piece) {
 	state.board[target_piece.position.y][target_piece.position.x] = nil;
 }
 
-get_landing_tile :: proc(target_piece, attacking_piece: Piece) -> v2i {
-	return target_piece.position + normalize_int(attacking_piece.position - target_piece.position);
+get_landing_tile :: proc(state: ^App_State, target_piece, attacking_piece: Piece) -> v2i {
+	if attacking_piece.type != .KNIGHT {
+		return target_piece.position + normalize_int(attacking_piece.position - target_piece.position);
+	}
+
+	// diagonal to target
+	normalized_dir := normalize_int(attacking_piece.position - target_piece.position);
+	potential_landing_tile := target_piece.position + normalized_dir
+	if state.board[potential_landing_tile.y][potential_landing_tile.x] == nil {
+		return potential_landing_tile;
+	}
+	
+	// horizontal to target
+	potential_landing_tile = target_piece.position + v2i{normalized_dir.x, 0};
+	if state.board[potential_landing_tile.y][potential_landing_tile.x] == nil {
+		return potential_landing_tile;
+	}
+
+	// vertical to target
+	potential_landing_tile = target_piece.position + v2i{0, normalized_dir.y};
+	if state.board[potential_landing_tile.y][potential_landing_tile.x] == nil {
+		return potential_landing_tile;
+	}
+
+	relative_pos := target_piece.position - attacking_piece.position
+	relative_last_tile := (relative_pos + normalized_dir) * -2;
+	// next to local
+	potential_landing_tile = target_piece.position + relative_last_tile;
+	if state.board[potential_landing_tile.y][potential_landing_tile.x] == nil {
+		return potential_landing_tile;
+	}
+
+	// stay in place if no other option
+	return attacking_piece.position;
 }

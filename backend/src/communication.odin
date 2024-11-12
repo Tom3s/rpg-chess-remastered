@@ -452,7 +452,7 @@ decode_packet :: proc(state: ^App_State, type: CLIENT_PACKET_TYPE, data: []byte,
 	data := data;
 	switch (type) {
 		case .EMPTY_PACKET:
-			// TODO: handle worng packets
+			// TODO: handle wrong packets
 		case .PLAYER_JOIN:
 			player_data := decode_player_join_packet(data);
 			player_data.socket = socket;

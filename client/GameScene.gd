@@ -6,6 +6,7 @@ class_name GameScene
 @onready var board: Board = %Board
 @onready var p1_pieces: Node2D = %P1Pieces
 @onready var p2_pieces: Node2D = %P2Pieces
+@onready var current_throw_label: Label = %CurrentThrowLabel
 
 var current_player: int
 var current_throw: int
@@ -49,7 +50,9 @@ func _ready() -> void:
 	# else:
 	# 	print("[GameScene.gd] Piece data successfully initialized")
 	# 	print(initialData)
-	initialize_board()
+	# initialize_board()
+
+	Network.initial_board_state_received.connect(initialize_board)
 
 	Network.available_actions_received.connect(func(moves: Array[Vector2i], attacks: Array[Vector2i]) -> void:
 		available_moves = moves
@@ -97,11 +100,11 @@ func _process(_delta: float) -> void:
 			board.clear_interactable_tiles()
 
 
-func initialize_board() -> void:
-	if GlobalNames.initial_board_data.size() == 0:
-		assert(false, "[GameScene.gd] Board data is empty; Exiting...")
+func initialize_board(state: Array) -> void:
+	# if GlobalNames.initial_board_data.size() == 0:
+	# 	assert(false, "[GameScene.gd] Board data is empty; Exiting...")
 	
-	var p1_piece_data: Array[Piece] = GlobalNames.initial_board_data[0]
+	var p1_piece_data: Array[Piece] = state[0]
 	
 	var index: int = 0
 	for p in p1_piece_data:
@@ -121,7 +124,7 @@ func initialize_board() -> void:
 		board_data.set_tile(piece.position_on_board, piece)
 		index += 1
 	
-	var p2_piece_data: Array[Piece] = GlobalNames.initial_board_data[1]
+	var p2_piece_data: Array[Piece] = state[1]
 	
 	index = 0
 	for p in p2_piece_data:
@@ -160,6 +163,8 @@ func move_piece(player_id: int, piece_id: int, target_tile: Vector2i) -> void:
 
 	board_data.set_tile(piece.position_on_board, piece)
 
+	selected_piece = null
+
 func resolve_attack(player_id: int, piece_id: int, target_piece_id: int, new_hp: int, landing_tile: Vector2i) -> void:
 	var piece_parent: Node2D = null
 	var target_piece_parent: Node2D = null
@@ -181,10 +186,13 @@ func resolve_attack(player_id: int, piece_id: int, target_piece_id: int, new_hp:
 
 	target_piece.set_hp(new_hp)
 
+	selected_piece = null
 
 func start_round(player: int, throw: int) -> void:
 	current_player = player
 	current_throw = throw
+
+	current_throw_label.text = "Current Throw: " + str(throw)
 
 func is_current_player() -> bool:
 	var current_player_id := Network.p1_id

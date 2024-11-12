@@ -32,6 +32,9 @@ func init_piece(
 	id = init_id
 	owner_player = init_owner
 
+	if owner_player == Network.main_player.id:
+		%Sprite.modulate = Network.main_player.color
+
 	init_stats()
 
 func init_stats() -> void:

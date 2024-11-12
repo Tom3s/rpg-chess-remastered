@@ -6,12 +6,30 @@
 [node name="GameScene" type="Node2D"]
 script = ExtResource("1_lkxyc")
 
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="HBoxContainer" type="HBoxContainer" parent="UI"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/HBoxContainer"]
+layout_mode = 2
+
+[node name="CurrentThrowLabel" type="Label" parent="UI/HBoxContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "Current Throw: -1"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="Board" parent="." instance=ExtResource("1_ayk78")]
 unique_name_in_owner = true
-dark_color = Color(0, 0.545098, 0.545098, 1)
-light_color = Color(0.529412, 0.807843, 0.980392, 1)
-border_color = Color(0, 0, 0, 1)
-show_top = true
 
 [node name="P1Pieces" type="Node2D" parent="."]
 unique_name_in_owner = true
