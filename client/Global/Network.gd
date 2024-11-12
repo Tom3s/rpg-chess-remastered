@@ -21,8 +21,8 @@ var p2_id: int
 # 	PLAYER_JOIN,
 # 	INITIAL_SETUP,
 # 	INIT_BOARD_STATE,
-# 	AVAILABLE_MOVE_REQUEST,
-# 	AVAILABLE_MOVES,
+# 	AVAILABLE_ACTIONS_REQUEST,
+# 	AVAILABLE_ACTIONS,
 # 	MOVE_PIECE,
 # 	PIECE_MOVED,
 # 	ROUND_START,
@@ -32,7 +32,7 @@ var p2_id: int
 enum SERVER_PACKET_TYPE {
 	EMPTY_PACKET, #this is here to handle empty data, should never happen
 	INIT_BOARD_STATE,
-	AVAILABLE_MOVES,
+	AVAILABLE_ACTIONS,
 	PIECE_MOVED,
 	ROUND_START,
 }
@@ -43,7 +43,7 @@ enum CLIENT_PACKET_TYPE {
 	EXIT,
 	PLAYER_JOIN,
 	INIT_PLAYER_SETUP,
-	AVAILABLE_MOVE_REQUEST,
+	AVAILABLE_ACTIONS_REQUEST,
 	MOVE_PIECE,
 }
 
@@ -54,7 +54,7 @@ var socket: StreamPeerTCP = null
 # region Signals
 
 # signal initial_board_setup_received()
-signal available_moves_received(moves: Array[Vector2i])
+signal available_actions_received(moves: Array[Vector2i], attacks: Array[Vector2i])
 signal piece_moved(player_id: int, piece_id: int, target_tile: Vector2i)
 signal round_started(player: int, throw: int)
 
@@ -209,7 +209,7 @@ func request_available_moves(piece_id: int) -> void:
 	var packet_data := PackedByteArray()
 	packet_data.resize(2 + 8 + 1)
 
-	packet_data.encode_u8(0, CLIENT_PACKET_TYPE.AVAILABLE_MOVE_REQUEST)
+	packet_data.encode_u8(0, CLIENT_PACKET_TYPE.AVAILABLE_ACTIONS_REQUEST)
 	packet_data.encode_u8(1, 8 + 1)
 
 	packet_data.encode_s64(2, main_player.id)
@@ -278,20 +278,40 @@ func decode_packet(packet_type: SERVER_PACKET_TYPE, data: PackedByteArray) -> vo
 			GlobalNames.initial_board_data = [p1_pieces, p2_pieces]
 			# get_tree().change_scene_to_file("res://GameScene.tscn")
 		
-		SERVER_PACKET_TYPE.AVAILABLE_MOVES:
-			var nr_moves: int = data.decode_u8(0)
+		SERVER_PACKET_TYPE.AVAILABLE_ACTIONS:
+			var _can_use_ability: bool = data.decode_u8(0) as bool 
+			var nr_moves: int = data.decode_u8(1)
 
 			var moves: Array[Vector2i] = []
 
+			var byte_offset: int = 2
+
 			for i in nr_moves:
-				var x: int = data.decode_u8(1 + i * 2)
-				var y: int = data.decode_u8(1 + i * 2 + 1)
+				var x: int = data.decode_u8(byte_offset)
+				var y: int = data.decode_u8(byte_offset + 1)
 
 				moves.push_back(Vector2i(x, y))
+				byte_offset += 2
 
-			# available_moves_received.emit(moves)
-			# call_deferred(available_moves_received.emit.bind(moves))
-			call_deferred("emit_signal", "available_moves_received", moves)
+			var nr_attacks: int = data.decode_u8(byte_offset)
+			byte_offset += 1
+
+			var attacks: Array[Vector2i] = []
+
+			for i in nr_attacks:
+				var x: int = data.decode_u8(byte_offset)
+				var y: int = data.decode_u8(byte_offset + 1)
+
+				attacks.push_back(Vector2i(x, y))
+				byte_offset += 2
+
+			# available_actions_received.emit(moves)
+			# call_deferred(available_actions_received.emit.bind(moves))
+
+			print("Moves: ", moves)
+			print("Attacks: ", attacks)
+
+			call_deferred("emit_signal", "available_actions_received", moves, attacks)
 
 		SERVER_PACKET_TYPE.PIECE_MOVED:
 			var player_id: int = data.decode_s64(0)

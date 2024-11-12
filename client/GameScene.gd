@@ -11,6 +11,7 @@ var current_player: int
 var current_throw: int
 
 var available_moves: Array[Vector2i]
+var available_attacks: Array[Vector2i]
 var selected_piece: Piece = null
 
 class BoardData:
@@ -50,8 +51,9 @@ func _ready() -> void:
 	# 	print(initialData)
 	initialize_board()
 
-	Network.available_moves_received.connect(func(moves: Array[Vector2i]) -> void:
+	Network.available_actions_received.connect(func(moves: Array[Vector2i], attacks: Array[Vector2i]) -> void:
 		available_moves = moves
+		available_attacks = attacks
 	)
 
 	Network.piece_moved.connect(move_piece)
@@ -70,7 +72,7 @@ func _process(_delta: float) -> void:
 		if board_data.get_tile(hovering_tile) != null:
 			selected_piece = board_data.get_tile(hovering_tile)
 			if selected_piece.owner_player != Network.main_player.id:
-				board.set_reachable_tiles([])
+				board.clear_interactable_tiles()
 				board.set_hovering_square(Vector2i.MAX)
 				return
 			Network.request_available_moves(selected_piece.id)
@@ -79,7 +81,7 @@ func _process(_delta: float) -> void:
 				if available_moves.has(hovering_tile):
 					Network.send_move_piece_packet(selected_piece.id, hovering_tile)
 			selected_piece = null
-			board.set_reachable_tiles([])
+			board.clear_interactable_tiles()
 			board.set_hovering_square(Vector2i.MAX)
 
 

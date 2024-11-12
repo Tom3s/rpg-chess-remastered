@@ -45,7 +45,8 @@ App_State :: struct {
 }
 
 reset_dice :: proc(dice: ^[6]int) {
-	dice^ = {1, 2, 3, 4, 5, 6};
+	// dice^ = {1, 2, 3, 4, 5, 6};
+	dice^ = {6, 6, 6, 6, 6, 6};
 	rand.shuffle(dice[:]);
 	fmt.println("[main] New dice bag: ", dice);
 }

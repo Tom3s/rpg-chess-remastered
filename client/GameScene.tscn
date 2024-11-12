@@ -8,6 +8,10 @@ script = ExtResource("1_lkxyc")
 
 [node name="Board" parent="." instance=ExtResource("1_ayk78")]
 unique_name_in_owner = true
+dark_color = Color(0, 0.545098, 0.545098, 1)
+light_color = Color(0.529412, 0.807843, 0.980392, 1)
+border_color = Color(0, 0, 0, 1)
+show_top = true
 
 [node name="P1Pieces" type="Node2D" parent="."]
 unique_name_in_owner = true

@@ -31,17 +31,20 @@ import "core:slice"
 	player_id: i64 (8 bytes)
 	pieces: u8 + 2 x u8 (NR_PIECES * 3 bytes)
 
-	AVAILABLE_MOVE_REQUEST:
+	AVAILABLE_ACTIONS_REQUEST:
 	packet_type: 4 (1 byte)
 	packet_data_size: 8 + 1 (1 byte)
 	player_id: i64 (8 bytes)
 	piece_id: u8 (1 byte)
 
-	AVAILABLE_MOVES:
+	AVAILABLE_ACTIONS:
 	packet_type: 4 (1 byte)
-	packet_data_size: 1 + n * 2 (1 byte)
+	packet_data_size: variable (1 byte)
+	can_use_ability: bool (1 byte)
 	moves_len: u8 (1 byte)
 	moves: u8 * 2 * n (n * 2 bytes)
+	attacks_len: u8 (1 byte)
+	attacks: u8 * 2 * m
 
 	MOVE_PIECE:
 	packet_type: 4 (1 byte)
@@ -70,8 +73,8 @@ import "core:slice"
 // 	PLAYER_JOIN,
 // 	INIT_PLAYER_SETUP,
 // 	INIT_BOARD_STATE,
-// 	AVAILABLE_MOVE_REQUEST,
-// 	AVAILABLE_MOVES,
+// 	AVAILABLE_ACTIONS_REQUEST,
+// 	AVAILABLE_ACTIONS,
 // 	MOVE_PIECE,
 // 	PIECE_MOVED,
 // 	ROUND_START,
@@ -81,7 +84,7 @@ import "core:slice"
 SERVER_PACKET_TYPE :: enum {
 	EMPTY_PACKET, // this is here to handle empty data, should never happen
 	INIT_BOARD_STATE,
-	AVAILABLE_MOVES,
+	AVAILABLE_ACTIONS,
 	PIECE_MOVED,
 	ROUND_START,
 }
@@ -92,7 +95,7 @@ CLIENT_PACKET_TYPE :: enum {
 	EXIT,
 	PLAYER_JOIN,
 	INIT_PLAYER_SETUP,
-	AVAILABLE_MOVE_REQUEST,
+	AVAILABLE_ACTIONS_REQUEST,
 	MOVE_PIECE,
 }
 
@@ -420,7 +423,7 @@ decode_packet :: proc(state: ^App_State, type: CLIENT_PACKET_TYPE, data: []byte,
 			// TODO: slice.to_type(...)
 			return decode_init_player_setup(data);
 		
-		case .AVAILABLE_MOVE_REQUEST:
+		case .AVAILABLE_ACTIONS_REQUEST:
 			return decode_available_move_request(data);
 
 		case .MOVE_PIECE:
@@ -434,7 +437,7 @@ decode_packet :: proc(state: ^App_State, type: CLIENT_PACKET_TYPE, data: []byte,
 // 		case .EMPTY_PACKET: fallthrough
 // 		case .EXIT: fallthrough
 // 		case .INIT_PLAYER_SETUP: fallthrough
-// 		case .AVAILABLE_MOVE_REQUEST: fallthrough
+// 		case .AVAILABLE_ACTIONS_REQUEST: fallthrough
 // 		case .MOVE_PIECE: fallthrough
 // 		case .PLAYER_JOIN: 
 // 			fmt.println("[communication] Server shouldn't send ", packet.type, " packets!");
@@ -442,7 +445,7 @@ decode_packet :: proc(state: ^App_State, type: CLIENT_PACKET_TYPE, data: []byte,
 // 			// return []byte{};
 // 		case .INIT_BOARD_STATE:
 // 			return encode_init_board_state(state);
-// 		case .AVAILABLE_MOVES:
+// 		case .AVAILABLE_ACTIONS:
 // 			data := (cast(^Available_Move_Data) packet.data)^;
 // 			piece_id := data.piece_id;
 // 			player_id := data.player_id;
@@ -521,25 +524,46 @@ encode_init_board_state :: proc(state: ^App_State) -> []byte {
 
 encode_available_moves :: proc(state: App_State, player_id: i64, piece_id: u8) -> []byte {
 	packet_data := make([dynamic]byte, 2);
-	packet_data[0] = cast(byte) SERVER_PACKET_TYPE.AVAILABLE_MOVES;
+	packet_data[0] = cast(byte) SERVER_PACKET_TYPE.AVAILABLE_ACTIONS;
 
 	moves: []Action;
 	if player_id == state.p1.id {
-		moves = get_available_moves(state, state.p1.pieces[piece_id], state.current_throw);
+		moves = get_available_actions(state, state.p1.pieces[piece_id], state.current_throw);
 	} else {
-		moves = get_available_moves(state, state.p2.pieces[piece_id], state.current_throw);
+		moves = get_available_actions(state, state.p2.pieces[piece_id], state.current_throw);
 	}
 
-	append(&packet_data, cast(u8) len(moves));
+	append(&packet_data, cast(u8) 0); // can use ability
+	moves_len_offset := len(packet_data);
+	append(&packet_data, cast(u8) 0);
+	moves_len := 0;
 
 	for action in moves {
-		append(&packet_data, cast(u8) action.target_tile.x);
-		append(&packet_data, cast(u8) action.target_tile.y);
+		if action.type == .MOVE {
+			append(&packet_data, cast(u8) action.target_tile.x);
+			append(&packet_data, cast(u8) action.target_tile.y);
+			moves_len += 1;
+		}
 	}
+	packet_data[moves_len_offset] = cast(u8) moves_len;
+	
+	attacks_len_offset := len(packet_data);
+	append(&packet_data, cast(u8) 0);
+	attacks_len := 0;
+
+	for action in moves {
+		if action.type == .ATTACK {
+			append(&packet_data, cast(u8) action.target_tile.x);
+			append(&packet_data, cast(u8) action.target_tile.y);
+			attacks_len += 1;
+		}
+	}
+
+	packet_data[attacks_len_offset] = cast(u8) attacks_len;
 
 	packet_data[1] = cast(byte) len(packet_data) - 2;
 
-	fmt.println("[communication] Moves for ", player_id, ", piece ", piece_id, moves);
+	// fmt.println("[communication] Moves for ", player_id, ", piece ", piece_id, moves);
 
 	return slice.reinterpret([]byte, packet_data[:]);
 }
