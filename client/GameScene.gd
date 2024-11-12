@@ -81,7 +81,7 @@ func _process(_delta: float) -> void:
 			if piece_on_tile.owner_player != Network.main_player.id:
 				# enemy piece on tile
 				board.clear_interactable_tiles()
-				if available_attacks.has(hovering_tile):
+				if selected_piece != null && available_attacks.has(hovering_tile):
 					# attack if possible
 					Network.send_attack_packet(selected_piece.id, hovering_tile)
 			else:
