@@ -187,55 +187,29 @@ move_piece :: proc(state: ^App_State, data: Move_Piece_Data) {
 	piece.position = target_tile;
 	state.board[piece.position.y][piece.position.x] = piece;
 
-	print_board(state^);
+	// print_board(state^);
+}
 
-	// data := new(Piece_Moved_Data)
-	// data.player_id = player_id;
-	// data.piece_id = piece_id;
-	// data.target_tile = target_tile;
-	
-	// out_packet_queue_push(&state.p1.requests,
-	// 	{
-	// 		type = .PIECE_MOVED,
-	// 		data = data,
-	// 	}
-	// )
-	// data2 := new(Piece_Moved_Data)
-	// data2.player_id = player_id;
-	// data2.piece_id = piece_id;
-	// data2.target_tile = target_tile;
-	// out_packet_queue_push(&state.p2.requests,
-	// 	{
-	// 		type = .PIECE_MOVED,
-	// 		data = data2,
-	// 	}
-	// )
+attack_with_piece :: proc(state: ^App_State, data: Attack_Data) {
+	player := get_player_with_id(state, data.player_id);
 
+	piece_id := data.piece_id;
+	target_tile := data.target_tile;
+
+	landing_tile := damage_piece(state.board[target_tile.y][target_tile.x], &player.pieces[piece_id]);
+
+	fmt.println("[main] target tile: ", target_tile, ", landing tile: ", landing_tile);
+
+	move_piece(state, Move_Piece_Data{
+		player_id = data.player_id,
+		piece_id = piece_id,
+		target_tile = landing_tile,
+	})
 }
 
 start_round :: proc(state: ^App_State) {
 	state.current_player = (state.current_player + 1) % 2;
 	state.current_throw = get_next_dice_throw(state);
-
-	// data := new(Round_Start_Data);
-	// data.player = state.current_player;
-	// data.current_throw = cast(u8) state.current_throw;
-	// out_packet_queue_push(&state.p1.requests,
-	// 	{
-	// 		type = .ROUND_START,
-	// 		data = data,
-	// 	}
-	// )
-
-	// data2 := new(Round_Start_Data);
-	// data2.player = state.current_player;
-	// data2.current_throw = cast(u8) state.current_throw;
-	// out_packet_queue_push(&state.p2.requests,
-	// 	{
-	// 		type = .ROUND_START,
-	// 		data = data2,
-	// 	}
-	// )
 }
 
 ENDPOINT := net.Endpoint{address = net.IP4_Address{0, 0, 0, 0}, port = 4000};
@@ -361,6 +335,20 @@ main :: proc() {
 					send_packet(state.p1.socket, round_start_packet);
 					send_packet(state.p2.socket, round_start_packet);
 
+				case Attack_Data:
+					attack_with_piece(&state, data);
+
+					piece_attacked_packet := encode_piece_attacked(&state, data);
+					
+					send_packet(state.p1.socket, piece_attacked_packet);
+					send_packet(state.p2.socket, piece_attacked_packet);
+
+					start_round(&state);
+
+					round_start_packet := encode_round_start(state);
+
+					send_packet(state.p1.socket, round_start_packet);
+					send_packet(state.p2.socket, round_start_packet);
 				
 				case Empty_Packet_Data:
 					fmt.println("[main] Empty packet huh?")

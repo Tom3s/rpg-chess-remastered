@@ -34,6 +34,7 @@ enum SERVER_PACKET_TYPE {
 	INIT_BOARD_STATE,
 	AVAILABLE_ACTIONS,
 	PIECE_MOVED,
+	PIECE_ATTACKED,
 	ROUND_START,
 }
 
@@ -45,6 +46,7 @@ enum CLIENT_PACKET_TYPE {
 	INIT_PLAYER_SETUP,
 	AVAILABLE_ACTIONS_REQUEST,
 	MOVE_PIECE,
+	ATTACK,
 }
 
 var socket: StreamPeerTCP = null
@@ -56,6 +58,7 @@ var socket: StreamPeerTCP = null
 # signal initial_board_setup_received()
 signal available_actions_received(moves: Array[Vector2i], attacks: Array[Vector2i])
 signal piece_moved(player_id: int, piece_id: int, target_tile: Vector2i)
+signal piece_attacked(player_id: int, piece_id: int, target_piece_id: int, new_hp: int, landing_tile: Vector2i)
 signal round_started(player: int, throw: int)
 
 var incoming_thread: Thread
@@ -203,6 +206,20 @@ func send_move_piece_packet(piece_id: int, target: Vector2i) -> void:
 
 	# receive_packet()
 
+func send_attack_packet(piece_id: int, target: Vector2i) -> void:
+	var packet_data := PackedByteArray()
+	packet_data.resize(2 + 8 + 1 + 2)
+
+	packet_data.encode_u8(0, CLIENT_PACKET_TYPE.ATTACK)
+	packet_data.encode_u8(1, 8 + 1 + 2)
+
+	packet_data.encode_s64(2, main_player.id)
+	packet_data.encode_u8(10, piece_id)
+
+	packet_data.encode_u8(11, target.x)
+	packet_data.encode_u8(12, target.y)
+
+	socket.put_data(packet_data)
 
 
 func request_available_moves(piece_id: int) -> void:
@@ -323,6 +340,19 @@ func decode_packet(packet_type: SERVER_PACKET_TYPE, data: PackedByteArray) -> vo
 
 			# piece_moved.emit(player_id, piece_id, target_tile)
 			call_deferred("emit_signal", "piece_moved", player_id, piece_id, target_tile)
+		SERVER_PACKET_TYPE.PIECE_ATTACKED:
+			var player_id: int = data.decode_s64(0)
+			var piece_id: int = data.decode_u8(8)
+			var target_piece_id: int = data.decode_u8(9)
+			var new_hp: int = data.decode_s8(10)
+
+
+			var landing_tile: Vector2i;
+			landing_tile.x = data.decode_u8(11)
+			landing_tile.y = data.decode_u8(12)
+			call_deferred("emit_signal", "piece_attacked", player_id, piece_id, target_piece_id, new_hp, landing_tile)
+			
+		
 
 		SERVER_PACKET_TYPE.ROUND_START:
 			var player: int = data.decode_u8(0)

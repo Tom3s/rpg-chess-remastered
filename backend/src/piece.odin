@@ -3,6 +3,7 @@ package main
 import "core:fmt"
 import "core:strings"
 import "core:slice"
+import "core:math/linalg"
 
 PIECE_TYPE :: enum {
 	PAWN, 
@@ -20,6 +21,7 @@ Piece :: struct {
 	position: v2i,
 
 	health: int,
+	max_health: int,
 	damage: int,
 	// armor: int,
 	
@@ -69,6 +71,8 @@ init_piece :: proc(type: PIECE_TYPE, owner: i64, position: v2i = {0, 0}, id: int
 			piece.damage = 2;
 
 	}
+
+	piece.max_health = piece.health;
 
 	return piece;
 }
@@ -180,6 +184,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					})
+					break;
 				} else do break;
 			}
 
@@ -197,6 +202,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					})
+					break;
 				} else do break;
 			}
 			for i in 1..=cost {
@@ -213,6 +219,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					})
+					break;
 				} else do break;
 			}
 
@@ -230,6 +237,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					})
+					break;
 				} else do break;
 			}
 
@@ -248,6 +256,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					})
+					break;
 				} else do break;
 			}
 
@@ -265,6 +274,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					})
+					break;
 				} else do break;
 			}
 			
@@ -282,6 +292,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					})
+					break;
 				} else do break;
 			}
 
@@ -299,6 +310,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					})
+					break;
 				} else do break;
 			}
 		case .KNIGHT:
@@ -356,6 +368,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					})
+					break;
 				} else do break;
 			}
 
@@ -373,6 +386,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					})
+					break;
 				} else do break;
 			}
 			for i in 1..=cost {
@@ -389,6 +403,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					})
+					break;
 				} else do break;
 			}
 
@@ -406,6 +421,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					})
+					break;
 				} else do break;
 			}
 			
@@ -423,6 +439,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					})
+					break;
 				} else do break;
 			}
 
@@ -440,6 +457,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					})
+					break;
 				} else do break;
 			}
 			
@@ -457,6 +475,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					})
+					break;
 				} else do break;
 			}
 
@@ -474,6 +493,7 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 						target_tile = move,
 						cost = i,
 					})
+					break;
 				} else do break;
 			}
 	} 
@@ -503,25 +523,18 @@ valid_attack :: proc(state: App_State, move: v2i, piece_owner: i64) -> bool {
 	return state.board[move.y][move.x].owner != piece_owner;
 }
 
-// @private
-// get_action :: proc(state: App_State, target_tile: v2i, piece_owner: i64) -> Action {
-// 	action := Action{
-// 		type = .INVALID,
-// 		target_tile = target_tile,
-// 		cost = -1,
-// 	}
-// 	if move.x < 0 || move.x >= BOARD_SIZE do return false;
-// 	if move.y < 0 || move.y >= BOARD_SIZE do return false;
+damage_piece :: proc(target_piece, attacking_piece: ^Piece) -> v2i {
+	fmt.println("[piece] ", attacking_piece, " is attacking ", target_piece);
+	target_piece.health -= attacking_piece.damage;
 
-// 	if state.board[move.y][move.x] != nil {
-// 		if state.board[move.y][move.x].owner != piece_owner {
-// 			action.type = .ATTACK;
-// 			return action;
-// 		}
-// 	} else {
-// 		action.type = .MOVE
-// 	}
+	// TODO: special case for KNIGHT
+	landing_tile := get_landing_tile(target_piece^, attacking_piece^);
 
-// 	return action;
+	fmt.println("[piece] Calculated landing tile: ", landing_tile);
 
-// }
+	return landing_tile;
+}
+
+get_landing_tile :: proc(target_piece, attacking_piece: Piece) -> v2i {
+	return target_piece.position + normalize_int(attacking_piece.position - target_piece.position);
+}

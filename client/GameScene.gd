@@ -57,11 +57,13 @@ func _ready() -> void:
 	)
 
 	Network.piece_moved.connect(move_piece)
+	Network.piece_attacked.connect(resolve_attack)
 	Network.round_started.connect(start_round)
 
 
 func _process(_delta: float) -> void:
 	if !is_current_player():
+		board.set_hovering_square(Vector2i.MAX)
 		return
 
 	var hovering_tile := board.get_closest_tile(get_local_mouse_position())
@@ -70,19 +72,29 @@ func _process(_delta: float) -> void:
 	if Input.is_action_just_pressed("left_click"):
 		print("[GameScene] Clicked on tile ", hovering_tile)
 		if board_data.get_tile(hovering_tile) != null:
-			selected_piece = board_data.get_tile(hovering_tile)
-			if selected_piece.owner_player != Network.main_player.id:
+			# tile is occupied
+			var piece_on_tile := board_data.get_tile(hovering_tile)
+
+			if piece_on_tile.owner_player != Network.main_player.id:
+				# enemy piece on tile
 				board.clear_interactable_tiles()
-				board.set_hovering_square(Vector2i.MAX)
-				return
-			Network.request_available_moves(selected_piece.id)
+				if available_attacks.has(hovering_tile):
+					# attack if possible
+					Network.send_attack_packet(selected_piece.id, hovering_tile)
+			else:
+				# friendly piece on tile
+				selected_piece = piece_on_tile
+				Network.request_available_moves(selected_piece.id)
+			# selected_piece = board_data.get_tile(hovering_tile)
 		else:
+			# tile is empty
 			if selected_piece != null:
 				if available_moves.has(hovering_tile):
+					# move currently selected piece if possible
 					Network.send_move_piece_packet(selected_piece.id, hovering_tile)
+			
 			selected_piece = null
 			board.clear_interactable_tiles()
-			board.set_hovering_square(Vector2i.MAX)
 
 
 func initialize_board() -> void:
@@ -95,10 +107,17 @@ func initialize_board() -> void:
 	for p in p1_piece_data:
 		var piece: Piece = piece_scene.instantiate()
 		p1_pieces.add_child(piece)
-		piece.piece_type = p.piece_type
-		piece.set_position_on_board(p.position_on_board, board)
-		piece.id = index
-		piece.owner_player = p.owner_player
+		# piece.piece_type = p.piece_type
+		# piece.set_position_on_board(p.position_on_board, board)
+		# piece.id = index
+		# piece.owner_player = p.owner_player
+		piece.init_piece(
+			p.piece_type,
+			p.position_on_board,
+			board,
+			index,
+			p.owner_player
+		)
 		board_data.set_tile(piece.position_on_board, piece)
 		index += 1
 	
@@ -108,10 +127,17 @@ func initialize_board() -> void:
 	for p in p2_piece_data:
 		var piece: Piece = piece_scene.instantiate()
 		p2_pieces.add_child(piece)
-		piece.piece_type = p.piece_type
-		piece.set_position_on_board(p.position_on_board, board)
-		piece.id = index
-		piece.owner_player = p.owner_player
+		# piece.piece_type = p.piece_type
+		# piece.set_position_on_board(p.position_on_board, board)
+		# piece.id = index
+		# piece.owner_player = p.owner_player
+		piece.init_piece(
+			p.piece_type,
+			p.position_on_board,
+			board,
+			index,
+			p.owner_player
+		)
 		board_data.set_tile(piece.position_on_board, piece)
 		index += 1
 	
@@ -133,6 +159,27 @@ func move_piece(player_id: int, piece_id: int, target_tile: Vector2i) -> void:
 	piece.set_position_on_board(target_tile, board)
 
 	board_data.set_tile(piece.position_on_board, piece)
+
+func resolve_attack(player_id: int, piece_id: int, target_piece_id: int, new_hp: int, landing_tile: Vector2i) -> void:
+	var piece_parent: Node2D = null
+	var target_piece_parent: Node2D = null
+
+	if player_id == Network.p1_id:
+		piece_parent = p1_pieces
+		target_piece_parent = p2_pieces
+	else:
+		piece_parent = p2_pieces
+		target_piece_parent = p1_pieces
+
+	var attacking_piece: Piece = piece_parent.get_child(piece_id)
+	var target_piece: Piece = target_piece_parent.get_child(target_piece_id)
+
+	board_data.set_tile(attacking_piece.position_on_board, null)
+	attacking_piece.set_position_on_board(landing_tile, board)
+
+	board_data.set_tile(attacking_piece.position_on_board, attacking_piece)
+
+	target_piece.set_hp(new_hp)
 
 func start_round(player: int, throw: int) -> void:
 	current_player = player
