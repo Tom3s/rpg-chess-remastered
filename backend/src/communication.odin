@@ -132,6 +132,7 @@ Move_Piece_Data :: struct {
 Attack_Data :: struct {
 	player_id: i64,
 	piece_id: u8,
+	target_piece_id: u8,
 	target_tile: v2i,
 }
 
@@ -432,13 +433,13 @@ decode_attack :: proc(data: []byte) -> Attack_Data {
 	target_tile.x = cast(int) cast(u8) data[9];
 	target_tile.y = cast(int) cast(u8) data[10];
 
-	attack_data := Attack_Data{
-		player_id = player_id,
-		piece_id = piece_id,
-		target_tile = target_tile,
-	}
+	// attack_data := Attack_Data{
+	// 	player_id = player_id,
+	// 	piece_id = piece_id,
+	// 	target_tile = target_tile,
+	// }
 
-	fmt.println("[communication] Received attack data: ", attack_data);
+	// fmt.println("[communication] Received attack data: ", attack_data);
 
 	return Attack_Data{
 		player_id = player_id,
@@ -597,9 +598,11 @@ encode_piece_attacked :: proc(state: ^App_State, data: Attack_Data) -> []byte {
 	append(&packet_data, cast(u8) data.piece_id);
 	// append(&packet_data, cast(u8) );
 	target_tile := data.target_tile;
-	target_piece := state.board[target_tile.y][target_tile.x];
+	// target_piece := state.board[target_tile.y][target_tile.x];
+	target_piece := get_opposing_player(state, data.player_id).pieces[data.target_piece_id];
 	append(&packet_data, cast(u8) target_piece.id);
-	append(&packet_data, cast(byte) cast(i8) target_piece.health);
+	append(&packet_data, cast(u8) cast(i8) target_piece.health);
+	fmt.println("[communication] Actual health (i8): ", cast(i8) target_piece.health, ", byte health: ", cast(u8) target_piece.health);
 	
 	attacking_piece := get_player_with_id(state, data.player_id).pieces[data.piece_id];
 	// attackers position was already updated in state

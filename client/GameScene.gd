@@ -181,6 +181,7 @@ func resolve_attack(player_id: int, piece_id: int, target_piece_id: int, new_hp:
 
 	target_piece.set_hp(new_hp)
 
+
 func start_round(player: int, throw: int) -> void:
 	current_player = player
 	current_throw = throw

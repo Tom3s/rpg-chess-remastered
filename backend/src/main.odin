@@ -68,6 +68,14 @@ get_player_with_id :: proc(state: ^App_State, id: i64) -> ^Player {
 	}
 	panic("[main] Invalid player id");
 }
+get_opposing_player :: proc(state: ^App_State, id: i64) -> ^Player {
+	if id == state.p1.id {
+		return &state.p2;
+	} else if id == state.p2.id {
+		return &state.p1;
+	}
+	panic("[main] Invalid player id");
+}
 
 get_next_dice_throw :: proc(state: ^App_State) -> int {
 	throw: int = -1;
@@ -196,7 +204,7 @@ attack_with_piece :: proc(state: ^App_State, data: Attack_Data) {
 	piece_id := data.piece_id;
 	target_tile := data.target_tile;
 
-	landing_tile := damage_piece(state.board[target_tile.y][target_tile.x], &player.pieces[piece_id]);
+	landing_tile := damage_piece(state, state.board[target_tile.y][target_tile.x], &player.pieces[piece_id]);
 
 	fmt.println("[main] target tile: ", target_tile, ", landing tile: ", landing_tile);
 
@@ -336,9 +344,11 @@ main :: proc() {
 					send_packet(state.p2.socket, round_start_packet);
 
 				case Attack_Data:
-					attack_with_piece(&state, data);
+					m_data := data;
+					m_data.target_piece_id = cast(u8) state.board[m_data.target_tile.y][m_data.target_tile.x].id
+					attack_with_piece(&state, m_data);
 
-					piece_attacked_packet := encode_piece_attacked(&state, data);
+					piece_attacked_packet := encode_piece_attacked(&state, m_data);
 					
 					send_packet(state.p1.socket, piece_attacked_packet);
 					send_packet(state.p2.socket, piece_attacked_packet);

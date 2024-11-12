@@ -345,6 +345,7 @@ func decode_packet(packet_type: SERVER_PACKET_TYPE, data: PackedByteArray) -> vo
 			var piece_id: int = data.decode_u8(8)
 			var target_piece_id: int = data.decode_u8(9)
 			var new_hp: int = data.decode_s8(10)
+			print("[Network.gd] Health byte: ", data[10])
 
 
 			var landing_tile: Vector2i;

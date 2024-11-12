@@ -63,6 +63,10 @@ func set_position_on_board(newPos: Vector2i, board: Board) -> void:
 	global_position = board.index_to_position(newPos)
 
 func set_hp(new_hp: int) -> void:
+	print("[Piece.gd] Setting hp of ", id, " to ", new_hp)
 	health = new_hp
+
+	if health <= 0:
+		visible = false
 
 	hp_label.text = "\nHP: " + str(health) + "/" + str(max_health)

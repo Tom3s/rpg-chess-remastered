@@ -523,16 +523,25 @@ valid_attack :: proc(state: App_State, move: v2i, piece_owner: i64) -> bool {
 	return state.board[move.y][move.x].owner != piece_owner;
 }
 
-damage_piece :: proc(target_piece, attacking_piece: ^Piece) -> v2i {
+damage_piece :: proc(state: ^App_State, target_piece, attacking_piece: ^Piece) -> v2i {
 	fmt.println("[piece] ", attacking_piece, " is attacking ", target_piece);
 	target_piece.health -= attacking_piece.damage;
 
-	// TODO: special case for KNIGHT
 	landing_tile := get_landing_tile(target_piece^, attacking_piece^);
+	if target_piece.health <= 0 {
+		kill_piece(state, target_piece);
+		landing_tile = target_piece.position;
+	}
+
+	// TODO: special case for KNIGHT
 
 	fmt.println("[piece] Calculated landing tile: ", landing_tile);
 
 	return landing_tile;
+}
+
+kill_piece :: proc(state: ^App_State, target_piece: ^Piece) {
+	state.board[target_piece.position.y][target_piece.position.x] = nil;
 }
 
 get_landing_tile :: proc(target_piece, attacking_piece: Piece) -> v2i {
