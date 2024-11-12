@@ -51,7 +51,10 @@ var reachable_tiles: Array[Vector2i] = []
 var attackable_tiles: Array[Vector2i] = []
 
 func _ready() -> void:
-	Network.available_moves_received.connect(set_reachable_tiles)
+	Network.available_actions_received.connect(func(moves: Array[Vector2i], attacks: Array[Vector2i]) -> void:
+		set_reachable_tiles(moves)
+		set_attackable_tiles(attacks)
+	)
 
 func _draw() -> void:
 	if show_top:

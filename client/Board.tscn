@@ -4,7 +4,3 @@
 
 [node name="Board" type="Node2D"]
 script = ExtResource("1_j83p8")
-dark_color = null
-light_color = null
-border_color = null
-show_top = null

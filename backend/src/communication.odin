@@ -8,9 +8,62 @@ import "core:strings"
 import "core:slice"
 
 
+
+
+/*
+	INIT_BOARD_STATE:
+	packet_type: u8 (1 byte)
+	packet_data_size: 16 + NR_PIECES * 3 * 2 (1 byte)
+	player_id: i64 (8 bytes)
+	pieces: u8 + 2 x u8 (NR_PIECES * 3 bytes)
+	player_id: i64 (8 bytes)
+	pieces: u8 + 2 x u8 (NR_PIECES * 3 bytes)
+
+	AVAILABLE_ACTIONS:
+	packet_type: u8 (1 byte)
+	packet_data_size: variable (1 byte)
+	can_use_ability: bool (1 byte)
+	moves_len: u8 (1 byte)
+	moves: u8 * 2 * n (n * 2 bytes)
+	attacks_len: u8 (1 byte)
+	attacks: u8 * 2 * m
+
+	PIECE_MOVED:
+	packet_type: u8 (1 byte)
+	packet_data_size: 8 + 1 + 2 (1 byte)
+	player_id: i64 (8 bytes)
+	piece_id: u8 (1 byte)
+	target: u8 * 2 (2 byte)
+
+	PIECE_ATTACKED:
+	packet_type: u8 (1 byte)
+	packet_data_size: 8 + 1 + 2 (1 byte)
+	attacking_player_id: i64 (8 bytes)
+	piece_id: u8 (1 byte)
+	target_piece_id: u8 (1 byte)
+	new_hp: s8 (1 byte)
+	landing_tile: 2 * u8 (2 bytes)
+
+	ROUND_START:
+	packet_type: u8 (1 byte)
+	packet_data_size: 8 + 1 + 2 (1 byte)
+	current_player: u8 (1 byte)
+	current_throw: u8 (1 byte)
+*/
+
+// aka from server -> to client packets
+SERVER_PACKET_TYPE :: enum {
+	EMPTY_PACKET, // this is here to handle empty data, should never happen
+	INIT_BOARD_STATE,
+	AVAILABLE_ACTIONS,
+	PIECE_MOVED,
+	PIECE_ATTACKED,
+	ROUND_START,
+}
+
 /*
 	PLAYER_JOIN:
-	packet_type: 2 (1 byte)
+	packet_type: u8 (1 byte)
 	packet_data_size: u8 (1 byte)
 	player_id: i64 (8 bytes)
 	color: 3 x u8 (3 bytes)
@@ -18,82 +71,41 @@ import "core:slice"
 	player_name: variable bytes
 
 	INIT_PLAYER_SETUP: 
-	packet_type: 3 (1 byte)
+	packet_type: u8 (1 byte)
 	packet_data_size: 8 + NR_PIECES * 3 (1 byte)
 	player_id: i64 (8 bytes)
 	pieces: u8 + 2 x u8 (NR_PIECES * 3 bytes)
 
-	INIT_BOARD_STATE:
-	packet_type: 4 (1 byte)
-	packet_data_size: 16 + NR_PIECES * 3 * 2 (1 byte)
-	player_id: i64 (8 bytes)
-	pieces: u8 + 2 x u8 (NR_PIECES * 3 bytes)
-	player_id: i64 (8 bytes)
-	pieces: u8 + 2 x u8 (NR_PIECES * 3 bytes)
-
-	AVAILABLE_MOVE_REQUEST:
-	packet_type: 4 (1 byte)
+	AVAILABLE_ACTIONS_REQUEST:
+	packet_type: u8 (1 byte)
 	packet_data_size: 8 + 1 (1 byte)
 	player_id: i64 (8 bytes)
 	piece_id: u8 (1 byte)
 
-	AVAILABLE_MOVES:
-	packet_type: 4 (1 byte)
-	packet_data_size: 1 + n * 2 (1 byte)
-	moves_len: u8 (1 byte)
-	moves: u8 * 2 * n (n * 2 bytes)
-
 	MOVE_PIECE:
-	packet_type: 4 (1 byte)
+	packet_type: u8 (1 byte)
 	packet_data_size: 8 + 1 + 2 (1 byte)
 	player_id: i64 (8 bytes)
 	piece_id: u8 (1 byte)
 	target: u8 * 2 (2 byte)
-
-	PIECE_MOVED:
-	packet_type: 4 (1 byte)
+	
+	ATTACK:
+	packet_type: u8 (1 byte)
 	packet_data_size: 8 + 1 + 2 (1 byte)
 	player_id: i64 (8 bytes)
 	piece_id: u8 (1 byte)
 	target: u8 * 2 (2 byte)
-
-	ROUND_START:
-	packet_type: 4 (1 byte)
-	packet_data_size: 8 + 1 + 2 (1 byte)
-	current_player: u8 (1 byte)
-	current_throw: u8 (1 byte)
 */
 
-// SERVER_PACKET_TYPE :: enum {
-// 	EMPTY_PACKET, // this is here to handle empty data, should never happen
-// 	EXIT,
-// 	PLAYER_JOIN,
-// 	INIT_PLAYER_SETUP,
-// 	INIT_BOARD_STATE,
-// 	AVAILABLE_MOVE_REQUEST,
-// 	AVAILABLE_MOVES,
-// 	MOVE_PIECE,
-// 	PIECE_MOVED,
-// 	ROUND_START,
-// }
-
-// aka from server -> to client packets
-SERVER_PACKET_TYPE :: enum {
-	EMPTY_PACKET, // this is here to handle empty data, should never happen
-	INIT_BOARD_STATE,
-	AVAILABLE_MOVES,
-	PIECE_MOVED,
-	ROUND_START,
-}
-
-// aka from server -> to client packets
+// aka from client -> to server packets
 CLIENT_PACKET_TYPE :: enum {
 	EMPTY_PACKET, // this is here to handle empty data, should never happen
 	EXIT,
 	PLAYER_JOIN,
 	INIT_PLAYER_SETUP,
-	AVAILABLE_MOVE_REQUEST,
+	AVAILABLE_ACTIONS_REQUEST,
 	MOVE_PIECE,
+	ATTACK,
 }
 
 Empty_Packet_Data :: struct {}
@@ -117,6 +129,12 @@ Move_Piece_Data :: struct {
 	piece_id: u8,
 	target_tile: v2i,
 }
+Attack_Data :: struct {
+	player_id: i64,
+	piece_id: u8,
+	target_piece_id: u8,
+	target_tile: v2i,
+}
 
 Decoded_Packet :: union #no_nil {
 	Empty_Packet_Data,
@@ -125,6 +143,7 @@ Decoded_Packet :: union #no_nil {
 	Init_Player_Setup_Data,
 	Available_Move_Request_Data,
 	Move_Piece_Data,
+	Attack_Data,
 }
 
 
@@ -404,11 +423,36 @@ decode_move_piece :: proc(data: []byte) -> Move_Piece_Data {
 	}
 }
 
+decode_attack :: proc(data: []byte) -> Attack_Data {
+	data := data;
+
+	player_id := slice.to_type(data[:8], i64);
+	piece_id := cast(u8) data[8];
+
+	target_tile: v2i;
+	target_tile.x = cast(int) cast(u8) data[9];
+	target_tile.y = cast(int) cast(u8) data[10];
+
+	// attack_data := Attack_Data{
+	// 	player_id = player_id,
+	// 	piece_id = piece_id,
+	// 	target_tile = target_tile,
+	// }
+
+	// fmt.println("[communication] Received attack data: ", attack_data);
+
+	return Attack_Data{
+		player_id = player_id,
+		piece_id = piece_id,
+		target_tile = target_tile,
+	}
+}
+
 decode_packet :: proc(state: ^App_State, type: CLIENT_PACKET_TYPE, data: []byte, socket: net.TCP_Socket) -> Decoded_Packet {
 	data := data;
 	switch (type) {
 		case .EMPTY_PACKET:
-			// TODO: handle worng packets
+			// TODO: handle wrong packets
 		case .PLAYER_JOIN:
 			player_data := decode_player_join_packet(data);
 			player_data.socket = socket;
@@ -420,55 +464,16 @@ decode_packet :: proc(state: ^App_State, type: CLIENT_PACKET_TYPE, data: []byte,
 			// TODO: slice.to_type(...)
 			return decode_init_player_setup(data);
 		
-		case .AVAILABLE_MOVE_REQUEST:
+		case .AVAILABLE_ACTIONS_REQUEST:
 			return decode_available_move_request(data);
 
 		case .MOVE_PIECE:
 			return decode_move_piece(data);
+		case .ATTACK:
+			return decode_attack(data);
 	}
 	return {};
 }
-
-// encode_packet :: proc(state: ^App_State, packet: Outbound_Packet) -> []byte{
-// 	switch (packet.type) {
-// 		case .EMPTY_PACKET: fallthrough
-// 		case .EXIT: fallthrough
-// 		case .INIT_PLAYER_SETUP: fallthrough
-// 		case .AVAILABLE_MOVE_REQUEST: fallthrough
-// 		case .MOVE_PIECE: fallthrough
-// 		case .PLAYER_JOIN: 
-// 			fmt.println("[communication] Server shouldn't send ", packet.type, " packets!");
-// 			panic("");
-// 			// return []byte{};
-// 		case .INIT_BOARD_STATE:
-// 			return encode_init_board_state(state);
-// 		case .AVAILABLE_MOVES:
-// 			data := (cast(^Available_Move_Data) packet.data)^;
-// 			piece_id := data.piece_id;
-// 			player_id := data.player_id;
-// 			free(packet.data);
-
-// 			fmt.println("[communication] Player with ID ", player_id, " requested moves for piece ", piece_id);
-
-// 			return encode_available_moves(state^, player_id, piece_id);
-// 		case .PIECE_MOVED:
-// 			data := (cast(^Piece_Moved_Data) packet.data)^;
-// 			piece_id := data.piece_id;
-// 			player_id := data.player_id;
-// 			target_tile := data.target_tile;
-// 			free(packet.data);
-
-// 			return encode_piece_moved(state^, player_id, piece_id, target_tile);
-// 		case .ROUND_START:
-// 			data := (cast(^Round_Start_Data) packet.data)^;
-// 			player := data.player;
-// 			throw := data.current_throw;
-// 			free(packet.data);
-
-// 			return encode_round_start(player, throw);
-// 	}
-// 	panic("Illegal state")
-// }
 
 encode_init_board_state :: proc(state: ^App_State) -> []byte {
 	// TODO: i have some wrong indexings
@@ -521,25 +526,46 @@ encode_init_board_state :: proc(state: ^App_State) -> []byte {
 
 encode_available_moves :: proc(state: App_State, player_id: i64, piece_id: u8) -> []byte {
 	packet_data := make([dynamic]byte, 2);
-	packet_data[0] = cast(byte) SERVER_PACKET_TYPE.AVAILABLE_MOVES;
+	packet_data[0] = cast(byte) SERVER_PACKET_TYPE.AVAILABLE_ACTIONS;
 
 	moves: []Action;
 	if player_id == state.p1.id {
-		moves = get_available_moves(state, state.p1.pieces[piece_id], state.current_throw);
+		moves = get_available_actions(state, state.p1.pieces[piece_id], state.current_throw);
 	} else {
-		moves = get_available_moves(state, state.p2.pieces[piece_id], state.current_throw);
+		moves = get_available_actions(state, state.p2.pieces[piece_id], state.current_throw);
 	}
 
-	append(&packet_data, cast(u8) len(moves));
+	append(&packet_data, cast(u8) 0); // can use ability
+	moves_len_offset := len(packet_data);
+	append(&packet_data, cast(u8) 0);
+	moves_len := 0;
 
 	for action in moves {
-		append(&packet_data, cast(u8) action.target_tile.x);
-		append(&packet_data, cast(u8) action.target_tile.y);
+		if action.type == .MOVE {
+			append(&packet_data, cast(u8) action.target_tile.x);
+			append(&packet_data, cast(u8) action.target_tile.y);
+			moves_len += 1;
+		}
 	}
+	packet_data[moves_len_offset] = cast(u8) moves_len;
+	
+	attacks_len_offset := len(packet_data);
+	append(&packet_data, cast(u8) 0);
+	attacks_len := 0;
+
+	for action in moves {
+		if action.type == .ATTACK {
+			append(&packet_data, cast(u8) action.target_tile.x);
+			append(&packet_data, cast(u8) action.target_tile.y);
+			attacks_len += 1;
+		}
+	}
+
+	packet_data[attacks_len_offset] = cast(u8) attacks_len;
 
 	packet_data[1] = cast(byte) len(packet_data) - 2;
 
-	fmt.println("[communication] Moves for ", player_id, ", piece ", piece_id, moves);
+	// fmt.println("[communication] Moves for ", player_id, ", piece ", piece_id, moves);
 
 	return slice.reinterpret([]byte, packet_data[:]);
 }
@@ -557,6 +583,35 @@ encode_piece_moved :: proc(state: App_State, data: Move_Piece_Data) -> []byte {
 	append(&packet_data, cast(u8) data.target_tile.y);
 
 	packet_data[1] = cast(byte) len(packet_data) - 2;
+
+	return slice.reinterpret([]byte, packet_data[:]);
+}
+
+encode_piece_attacked :: proc(state: ^App_State, data: Attack_Data) -> []byte {
+	packet_data := make([dynamic]byte, 2);
+	packet_data[0] = cast(byte) SERVER_PACKET_TYPE.PIECE_ATTACKED;
+
+	// player_id := player_id;
+	data := data;
+	append_elems(&packet_data, ..bytes_of(&data.player_id));
+
+	append(&packet_data, cast(u8) data.piece_id);
+	// append(&packet_data, cast(u8) );
+	target_tile := data.target_tile;
+	// target_piece := state.board[target_tile.y][target_tile.x];
+	target_piece := get_opposing_player(state, data.player_id).pieces[data.target_piece_id];
+	append(&packet_data, cast(u8) target_piece.id);
+	append(&packet_data, cast(u8) cast(i8) target_piece.health);
+	fmt.println("[communication] Actual health (i8): ", cast(i8) target_piece.health, ", byte health: ", cast(u8) target_piece.health);
+	
+	attacking_piece := get_player_with_id(state, data.player_id).pieces[data.piece_id];
+	// attackers position was already updated in state
+	append(&packet_data, cast(u8) attacking_piece.position.x);
+	append(&packet_data, cast(u8) attacking_piece.position.y);
+
+	packet_data[1] = cast(byte) len(packet_data) - 2;
+
+	fmt.println("[communication] Piece attack packet: ", packet_data);
 
 	return slice.reinterpret([]byte, packet_data[:]);
 }

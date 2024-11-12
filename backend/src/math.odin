@@ -29,3 +29,16 @@ ease_in_out_cubic :: proc(x: f32) -> f32 {
 ease_out_cubic :: proc(x: f32) -> f32 {
 	return 1 - linalg.pow(1 - x, 3);
 }
+
+normalize_int :: proc(v: v2i) -> v2i {
+	v := v;
+	// can't divide by zero smh
+	if v.x != 0 {
+		v.x = v.x / abs(v.x);
+	}
+	if v.y != 0 {
+		v.y = v.y / abs(v.y);
+	}
+
+	return v;
+}

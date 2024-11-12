@@ -10,3 +10,18 @@ script = ExtResource("1_ymcwn")
 unique_name_in_owner = true
 scale = Vector2(0.25, 0.25)
 texture = ExtResource("2_0s7j6")
+
+[node name="HPLabel" type="Label" parent="."]
+unique_name_in_owner = true
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -59.5
+offset_right = 59.5
+offset_bottom = 36.0
+grow_horizontal = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 12
+theme_override_font_sizes/font_size = 20
+horizontal_alignment = 1
+vertical_alignment = 1

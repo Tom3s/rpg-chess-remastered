@@ -203,6 +203,9 @@ func randomize_board() -> void:
 
 
 func player_ready() -> void:
+	get_tree().change_scene_to_file("res://GameScene.tscn")
+	
 	Network.send_inital_setup_packet(pieces)
+
 
 	# Network.receive_packet()
