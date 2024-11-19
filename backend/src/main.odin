@@ -60,6 +60,14 @@ init_app_state :: proc(state: ^App_State) {
 	state.current_player = 1;
 }
 
+get_current_player :: proc(state: ^App_State) -> Player {
+	if state.current_player == 0 {
+		return state.p1;
+	} else {
+		return state.p2;
+	}
+}
+
 get_player_with_id :: proc(state: ^App_State, id: i64) -> ^Player {
 	if id == state.p1.id {
 		return &state.p1;
@@ -215,6 +223,23 @@ attack_with_piece :: proc(state: ^App_State, data: Attack_Data) {
 	})
 }
 
+use_ability :: proc(state: ^App_State, data: Ability_Data) {
+	player := get_player_with_id(state, data.player_id);
+	piece_id := data.piece_id;
+	piece := &player.pieces[piece_id];
+
+	switch ability_data in data.data {
+		case Pawn_Ability_Data:
+			piece.type = ability_data.type;
+			piece.damage = get_type_dmg(ability_data.type) + 2;
+
+			fmt.println("[main] ", piece);
+		
+		case Bishop_Ability_Data:
+			return
+	}
+}
+
 start_round :: proc(state: ^App_State) {
 	state.current_player = (state.current_player + 1) % 2;
 	state.current_throw = get_next_dice_throw(state);
@@ -324,7 +349,7 @@ main :: proc() {
 				
 				case Available_Move_Request_Data:
 					player := get_player_with_id(&state, data.player_id);
-					moves_packet := encode_available_moves(state, data.player_id, data.piece_id);
+					moves_packet := encode_available_moves(&state, data.player_id, data.piece_id);
 
 					send_packet(player.socket, moves_packet);
 				
@@ -360,6 +385,22 @@ main :: proc() {
 					send_packet(state.p1.socket, round_start_packet);
 					send_packet(state.p2.socket, round_start_packet);
 				
+				case Ability_Data:
+					use_ability(&state, data);
+
+					used_ability_packet := encode_used_ability(&state, data);
+
+					send_packet(state.p1.socket, used_ability_packet);
+					send_packet(state.p2.socket, used_ability_packet);
+
+					start_round(&state);
+
+					round_start_packet := encode_round_start(state);
+
+					send_packet(state.p1.socket, round_start_packet);
+					send_packet(state.p2.socket, round_start_packet);
+
+
 				case Empty_Packet_Data:
 					fmt.println("[main] Empty packet huh?")
 				case Exit_Data:

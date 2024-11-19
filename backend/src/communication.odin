@@ -49,6 +49,20 @@ import "core:slice"
 	packet_data_size: 8 + 1 + 2 (1 byte)
 	current_player: u8 (1 byte)
 	current_throw: u8 (1 byte)
+
+	USED_ABILITY:
+	packet_type: u8 (1 byte)
+	packet_data_size: 8 + 1 + 2 (1 byte)
+	player_id: i64 (8 bytes)
+	piece_id: u8 (1 byte)
+	ability_type: u8 (1 byte -> enum) 
+	ability_info: variable bytes
+
+		aility_info:
+		PAWN:
+		new_type: u8 (1 byte -> enum)
+		new_dmg: u8 (1 byte)
+
 */
 
 // aka from server -> to client packets
@@ -59,6 +73,7 @@ SERVER_PACKET_TYPE :: enum {
 	PIECE_MOVED,
 	PIECE_ATTACKED,
 	ROUND_START,
+	USED_ABILITY,
 }
 
 /*
@@ -95,6 +110,17 @@ SERVER_PACKET_TYPE :: enum {
 	player_id: i64 (8 bytes)
 	piece_id: u8 (1 byte)
 	target: u8 * 2 (2 byte)
+
+	USE_ABILITY:
+	packet_type: u8 (1 byte)
+	packet_data_size: 8 + 1 + 2 (1 byte)
+	player_id: i64 (8 bytes)
+	piece_id: u8 (1 byte)
+	ability_info: variable bytes
+
+		aility_info:
+		PAWN:
+		selected_type: u8 (1 byte)
 */
 
 // aka from client -> to server packets
@@ -106,6 +132,7 @@ CLIENT_PACKET_TYPE :: enum {
 	AVAILABLE_ACTIONS_REQUEST,
 	MOVE_PIECE,
 	ATTACK,
+	USE_ABILITY,
 }
 
 Empty_Packet_Data :: struct {}
@@ -136,6 +163,24 @@ Attack_Data :: struct {
 	target_tile: v2i,
 }
 
+Pawn_Ability_Data :: struct {
+	type: PIECE_TYPE
+}
+Bishop_Ability_Data :: struct {
+	direction: v2i
+}
+
+Ability_Extra_Data :: union #no_nil {
+	Pawn_Ability_Data,
+	Bishop_Ability_Data,
+}
+
+Ability_Data :: struct {
+	player_id: i64,
+	piece_id: u8,
+	data: Ability_Extra_Data,
+}
+
 Decoded_Packet :: union #no_nil {
 	Empty_Packet_Data,
 	Exit_Data,
@@ -144,65 +189,8 @@ Decoded_Packet :: union #no_nil {
 	Available_Move_Request_Data,
 	Move_Piece_Data,
 	Attack_Data,
+	Ability_Data,
 }
-
-
-
-// Available_Move_Data :: struct {
-// 	player_id: i64,
-// 	piece_id: u8
-// }
-
-// Piece_Moved_Data :: struct {
-// 	player_id: i64,
-// 	piece_id: u8,
-// 	target_tile: v2i,
-// }
-
-// Round_Start_Data :: struct {
-// 	using shared: Packet_Shared,
-// 	player: u8,
-// 	current_throw: u8,
-// 	asd: struct {
-// 		a, b, c
-// 	}
-// }
-
-// Packet_Shared :: struct {
-// 	id: int, 
-// }
-
-// Decoded_Packet :: union {
-// 	Piece_Moved_Data,
-// 	Round_Start_Data,
-// }
-
-// Decoded2 :: struct {
-// 	// kind: CLIENT_PACKET_TYPE,
-// 	kind: typeid,
-// 	value: struct #raw_union {
-		
-// 		Piece_Moved_Data,
-// 		Round_Start_Data,
-// 	}
-// }
-
-// hugy :: proc () {
-	
-// 	asdasd: Decoded_Packet;
-// 	switch a in asdasd {
-// 		case Piece_Moved_Data:
-// 			asd := &a;
-// 		}
-
-// 	is_type(Round_Start_Data, asdasd);
-// }
-
-// is_type :: proc ($T: typeid, packet: Decoded_Packet) -> bool {
-// 	_, ok := packet.(T);
-
-// 	return ok;
-// }
 
 Client_Packet :: struct {
 	// type: CLIENT_PACKET_TYPE,
@@ -448,6 +436,36 @@ decode_attack :: proc(data: []byte) -> Attack_Data {
 	}
 }
 
+decode_use_ability :: proc(state: ^App_State, data: []byte) -> Ability_Data {
+	data := data;
+
+	player_id := slice.to_type(data[:8], i64);
+	piece_id := cast(u8) data[8];
+
+	player := get_player_with_id(state, player_id);
+
+	piece := player.pieces[piece_id];
+
+	switch (piece.type) {
+		case .PAWN:
+			selected_type := cast(PIECE_TYPE) data[9];
+
+			return Ability_Data{
+				player_id = player_id,
+				piece_id = piece_id,
+				data = Pawn_Ability_Data{
+					type = selected_type,
+				},
+			}
+		case .BISHOP: fallthrough
+		case .KNIGHT: fallthrough
+		case .QUEEN: fallthrough
+		case .ROOK:
+			return {};
+	}
+	return {};
+}
+
 decode_packet :: proc(state: ^App_State, type: CLIENT_PACKET_TYPE, data: []byte, socket: net.TCP_Socket) -> Decoded_Packet {
 	data := data;
 	switch (type) {
@@ -471,6 +489,9 @@ decode_packet :: proc(state: ^App_State, type: CLIENT_PACKET_TYPE, data: []byte,
 			return decode_move_piece(data);
 		case .ATTACK:
 			return decode_attack(data);
+		case .USE_ABILITY:
+			// fmt.println("[communication] Pawn using ability: ", cast(PIECE_TYPE) data[9]);
+			return decode_use_ability(state, data);
 	}
 	return {};
 }
@@ -524,18 +545,21 @@ encode_init_board_state :: proc(state: ^App_State) -> []byte {
 	return slice.reinterpret([]byte, packet_data[:]);
 }
 
-encode_available_moves :: proc(state: App_State, player_id: i64, piece_id: u8) -> []byte {
+encode_available_moves :: proc(state: ^App_State, player_id: i64, piece_id: u8) -> []byte {
 	packet_data := make([dynamic]byte, 2);
 	packet_data[0] = cast(byte) SERVER_PACKET_TYPE.AVAILABLE_ACTIONS;
 
-	moves: []Action;
-	if player_id == state.p1.id {
-		moves = get_available_actions(state, state.p1.pieces[piece_id], state.current_throw);
-	} else {
-		moves = get_available_actions(state, state.p2.pieces[piece_id], state.current_throw);
-	}
+	player := get_player_with_id(state, player_id);
+	moves := get_available_actions(state^, player.pieces[piece_id], state.current_throw);
+	// if player_id == state.p1.id {
+	// 	moves = get_available_actions(state, state.p1.pieces[piece_id], state.current_throw);
+	// } else {
+	// 	moves = get_available_actions(state, state.p2.pieces[piece_id], state.current_throw);
+	// }
 
-	append(&packet_data, cast(u8) 0); // can use ability
+	can_use_ability := check_ability_eligibility(state^, player.pieces[piece_id], state.current_throw);
+
+	append(&packet_data, cast(u8) can_use_ability); // can use ability
 	moves_len_offset := len(packet_data);
 	append(&packet_data, cast(u8) 0);
 	moves_len := 0;
@@ -626,6 +650,34 @@ encode_round_start :: proc(state: App_State) -> []byte {
 
 	append(&packet_data, player);
 	append(&packet_data, throw);
+
+	packet_data[1] = cast(byte) len(packet_data) - 2;
+
+	return slice.reinterpret([]byte, packet_data[:]);
+}
+
+encode_used_ability :: proc(state: ^App_State, data: Ability_Data) -> []byte {
+	packet_data := make([dynamic]byte, 2);
+	packet_data[0] = cast(byte) SERVER_PACKET_TYPE.USED_ABILITY;
+
+	// player_id := player_id;
+	data := data;
+	append_elems(&packet_data, ..bytes_of(&data.player_id));
+
+	append(&packet_data, cast(u8) data.piece_id);
+
+	switch ability_data in data.data {
+		case Pawn_Ability_Data:
+			player := get_player_with_id(state, data.player_id);
+			piece := player.pieces[data.piece_id];
+
+			append(&packet_data, cast(u8) PIECE_TYPE.PAWN);
+			append(&packet_data, cast(u8) piece.type);
+			append(&packet_data, cast(u8) piece.damage);
+
+		case Bishop_Ability_Data:
+			break;
+	}
 
 	packet_data[1] = cast(byte) len(packet_data) - 2;
 

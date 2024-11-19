@@ -36,6 +36,7 @@ enum SERVER_PACKET_TYPE {
 	PIECE_MOVED,
 	PIECE_ATTACKED,
 	ROUND_START,
+	USED_ABILITY,
 }
 
 # aka from server -> to client packets
@@ -47,6 +48,7 @@ enum CLIENT_PACKET_TYPE {
 	AVAILABLE_ACTIONS_REQUEST,
 	MOVE_PIECE,
 	ATTACK,
+	USE_ABILITY,
 }
 
 var socket: StreamPeerTCP = null
@@ -56,10 +58,11 @@ var socket: StreamPeerTCP = null
 # region Signals
 
 signal initial_board_state_received(state: Array)
-signal available_actions_received(moves: Array[Vector2i], attacks: Array[Vector2i])
+signal available_actions_received(moves: Array[Vector2i], attacks: Array[Vector2i], can_use_ability: bool)
 signal piece_moved(player_id: int, piece_id: int, target_tile: Vector2i)
 signal piece_attacked(player_id: int, piece_id: int, target_piece_id: int, new_hp: int, landing_tile: Vector2i)
 signal round_started(player: int, throw: int)
+signal ability_used(player_id: int, piece_id: int, ability_data: Dictionary)
 
 var incoming_thread: Thread
 
@@ -237,6 +240,34 @@ func request_available_moves(piece_id: int) -> void:
 
 	# receive_packet()
 
+func send_use_ability_packet(piece: Piece, ability_data: Dictionary) -> void:
+	var packet_data := PackedByteArray()
+	packet_data.resize(2 + 8 + 1)
+
+	packet_data.encode_u8(0, CLIENT_PACKET_TYPE.USE_ABILITY)
+	# packet_data.encode_u8(1, 8 + 1) # data will be calculated at the end
+
+	packet_data.encode_s64(2, main_player.id)
+	packet_data.encode_u8(10, piece.id)
+
+	match piece.piece_type:
+		GlobalNames.PIECE_TYPE.PAWN:
+			packet_data.resize(packet_data.size() + 1)
+			packet_data.encode_u8(11, ability_data.selected_type)
+		GlobalNames.PIECE_TYPE.ROOK:
+			pass
+		GlobalNames.PIECE_TYPE.BISHOP:
+			pass
+		GlobalNames.PIECE_TYPE.KNIGHT:
+			pass
+		GlobalNames.PIECE_TYPE.QUEEN:
+			pass
+
+	packet_data.encode_u8(1, packet_data.size() - 2)
+
+	socket.put_data(packet_data)
+
+
 func handle_incoming_packets() -> void:
 	while true:
 		receive_packet()
@@ -298,7 +329,7 @@ func decode_packet(packet_type: SERVER_PACKET_TYPE, data: PackedByteArray) -> vo
 			# get_tree().change_scene_to_file("res://GameScene.tscn")
 		
 		SERVER_PACKET_TYPE.AVAILABLE_ACTIONS:
-			var _can_use_ability: bool = data.decode_u8(0) as bool 
+			var can_use_ability: bool = data.decode_u8(0) as bool 
 			var nr_moves: int = data.decode_u8(1)
 
 			var moves: Array[Vector2i] = []
@@ -330,7 +361,7 @@ func decode_packet(packet_type: SERVER_PACKET_TYPE, data: PackedByteArray) -> vo
 			print("Moves: ", moves)
 			print("Attacks: ", attacks)
 
-			call_deferred("emit_signal", "available_actions_received", moves, attacks)
+			call_deferred("emit_signal", "available_actions_received", moves, attacks, can_use_ability)
 
 		SERVER_PACKET_TYPE.PIECE_MOVED:
 			var player_id: int = data.decode_s64(0)
@@ -362,5 +393,28 @@ func decode_packet(packet_type: SERVER_PACKET_TYPE, data: PackedByteArray) -> vo
 			var throw: int = data.decode_u8(1)
 
 			call_deferred("emit_signal", "round_started", player, throw)
+		
+		SERVER_PACKET_TYPE.USED_ABILITY:
+			var player_id: int = data.decode_s64(0)
+			var piece_id: int = data.decode_u8(8)
+
+			var ability_type: GlobalNames.PIECE_TYPE = data.decode_u8(9) as GlobalNames.PIECE_TYPE
+
+			match ability_type:
+				GlobalNames.PIECE_TYPE.PAWN:
+					var new_type: GlobalNames.PIECE_TYPE = data.decode_u8(10) as GlobalNames.PIECE_TYPE
+					var new_damage: int = data.decode_u8(11)
+
+					call_deferred("emit_signal", "ability_used", 
+						player_id, piece_id,
+						{
+							"new_type": new_type,
+							"new_dmg": new_damage,
+						}
+					)
+				_:
+					pass
+
+
 		# _:
 			# default
