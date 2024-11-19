@@ -82,12 +82,17 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	# if !is_current_player():
+	# 	board.set_hovering_square(Vector2i.MAX)
+	# 	return
+	pass
+
+
+func _unhandled_input(event: InputEvent) -> void:
 	if !is_current_player():
 		board.set_hovering_square(Vector2i.MAX)
 		return
 
-
-func _unhandled_input(event: InputEvent) -> void:
 	var hovering_tile := board.get_closest_tile(get_local_mouse_position())
 	board.set_hovering_square(hovering_tile)
 
