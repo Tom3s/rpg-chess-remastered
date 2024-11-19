@@ -73,3 +73,6 @@ func set_hp(new_hp: int) -> void:
 		visible = false
 
 	hp_label.text = "\nHP: " + str(health) + "/" + str(max_health)
+
+func _to_string() -> String:
+	return "{" + GlobalNames.PIECE_TYPE.keys()[piece_type] + "(id: " + str(id) + "): " + hp_label.text.replace("\n", "") + "}"

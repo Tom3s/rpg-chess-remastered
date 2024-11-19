@@ -45,6 +45,48 @@ Action :: struct {
 	cost: int,
 }
 
+get_type_hp :: proc(type: PIECE_TYPE) -> int{
+	switch (type) {
+		case .PAWN:
+			return 5;
+			
+		case .ROOK:
+			return 9;
+			
+		case .BISHOP:
+			return 8;
+			
+		case .KNIGHT:
+			return 5;
+			
+		case .QUEEN:
+			return 15;
+	}
+
+	return -1;
+}
+
+get_type_dmg :: proc(type: PIECE_TYPE) -> int{
+	switch (type) {
+		case .PAWN:
+			return 3;
+
+		case .ROOK:
+			return 4;
+
+		case .BISHOP:
+			return 5;
+
+		case .KNIGHT:
+			return 8;
+
+		case .QUEEN:
+			return 2;
+	}
+
+	return 0;
+}
+
 init_piece :: proc(type: PIECE_TYPE, owner: i64, position: v2i = {0, 0}, id: int = 0) -> Piece {
 	piece: Piece;
 
@@ -53,24 +95,8 @@ init_piece :: proc(type: PIECE_TYPE, owner: i64, position: v2i = {0, 0}, id: int
 	piece.id = id;
 	piece.type = type;
 
-	switch (type) {
-		case .PAWN:
-			piece.health = 5;
-			piece.damage = 3;
-		case .ROOK:
-			piece.health = 9;
-			piece.damage = 4;
-		case .BISHOP:
-			piece.health = 8;
-			piece.damage = 5;
-		case .KNIGHT:
-			piece.health = 5;
-			piece.damage = 8;
-		case .QUEEN:
-			piece.health = 15;
-			piece.damage = 2;
-
-	}
+	piece.health = get_type_hp(type);
+	piece.damage = get_type_dmg(type);
 
 	piece.max_health = piece.health;
 
@@ -579,4 +605,35 @@ get_landing_tile :: proc(state: ^App_State, target_piece, attacking_piece: Piece
 
 	// stay in place if no other option
 	return attacking_piece.position;
+}
+
+check_ability_eligibility :: proc(state: App_State, piece: Piece, throw: int) -> bool {
+	switch (piece.type) {
+		case .PAWN:
+			location_reached := false;
+			if piece.owner == state.p1.id {
+				// piece must be at the top of the board
+				location_reached = piece.position.y == 0;
+			} else if piece.owner == state.p2.id {
+				// piece must be at the bottom of the board
+				location_reached = piece.position.y == (BOARD_SIZE - 1);
+			}
+
+			// TODO: maybe move ability costs to a different place
+			return throw >= 3 && location_reached;
+			
+		case .BISHOP:
+			return false;
+
+		case .KNIGHT:
+			return false;
+
+		case .QUEEN:
+			return false;
+
+		case .ROOK:
+			return false;
+	}
+
+	return false;
 }

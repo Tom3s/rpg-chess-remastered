@@ -212,7 +212,6 @@ unique_name_in_owner = true
 height = 2
 dark_color = Color(0, 0.545098, 0.545098, 1)
 light_color = Color(0.529412, 0.807843, 0.980392, 1)
-border_color = Color(0, 0, 0, 1)
 show_top = false
 
 [node name="Camera" type="Camera2D" parent="."]
