@@ -191,26 +191,50 @@ all_players_ready :: proc(state: App_State) -> bool {
 	return state.p1.ready && state.p2.ready;
 }
 
-move_piece :: proc(state: ^App_State, data: Move_Piece_Data) {
-	// player_id: i64, piece_id: u8, target_tile: v2i
+move_piece :: proc(state: ^App_State, data: Move_Piece_Data, forced: bool = false) -> bool {
 	player := get_player_with_id(state, data.player_id);
 
 	piece_id := data.piece_id;
 	target_tile := data.target_tile;
-
 	piece := &player.pieces[piece_id];
+
+	moves := get_available_actions(state^, piece^, state.current_throw);
+
+	found := forced;
+	for move in moves {
+		if move.type == .MOVE && move.target_tile == target_tile {
+			found = true;
+			break;
+		}
+	}
+
+	if !found do return false;
+
 	state.board[piece.position.y][piece.position.x] = nil;
 	piece.position = target_tile;
 	state.board[piece.position.y][piece.position.x] = piece;
 
-	// print_board(state^);
+	return true;
 }
 
-attack_with_piece :: proc(state: ^App_State, data: Attack_Data) {
+attack_with_piece :: proc(state: ^App_State, data: Attack_Data) -> bool {
 	player := get_player_with_id(state, data.player_id);
 
 	piece_id := data.piece_id;
 	target_tile := data.target_tile;
+	piece := &player.pieces[piece_id];
+
+	moves := get_available_actions(state^, piece^, state.current_throw);
+
+	found := false
+	for move in moves {
+		if move.type == .ATTACK && move.target_tile == target_tile {
+			found = true;
+			break;
+		}
+	}
+
+	if !found do return false;
 
 	landing_tile := damage_piece(state, state.board[target_tile.y][target_tile.x], &player.pieces[piece_id]);
 
@@ -220,24 +244,33 @@ attack_with_piece :: proc(state: ^App_State, data: Attack_Data) {
 		player_id = data.player_id,
 		piece_id = piece_id,
 		target_tile = landing_tile,
-	})
+	}, true)
+
+	return true;
 }
 
-use_ability :: proc(state: ^App_State, data: Ability_Data) {
+use_ability :: proc(state: ^App_State, data: Ability_Data) -> bool {
 	player := get_player_with_id(state, data.player_id);
 	piece_id := data.piece_id;
 	piece := &player.pieces[piece_id];
+
+	can_use_ability := check_ability_eligibility(state^, piece^, state.current_throw);
+
+	if !can_use_ability do return false;
 
 	switch ability_data in data.data {
 		case Pawn_Ability_Data:
 			piece.type = ability_data.type;
 			piece.damage = get_type_dmg(ability_data.type) + 2;
 
-			fmt.println("[main] ", piece);
+			// fmt.println("[main] ", piece);
+			return true;
 		
 		case Bishop_Ability_Data:
-			return
+			return false;
 	}
+
+	return false;
 }
 
 start_round :: proc(state: ^App_State) {
@@ -348,13 +381,22 @@ main :: proc() {
 					// add_pieces(&state, data);
 				
 				case Available_Move_Request_Data:
+					if get_current_player(&state).id != data.player_id {
+						break;
+					}
+
 					player := get_player_with_id(&state, data.player_id);
 					moves_packet := encode_available_moves(&state, data.player_id, data.piece_id);
 
 					send_packet(player.socket, moves_packet);
 				
 				case Move_Piece_Data:
-					move_piece(&state, data);
+					if get_current_player(&state).id != data.player_id {
+						break;
+					}
+
+					ok := move_piece(&state, data);
+					if !ok do break;
 
 					piece_moved_packet := encode_piece_moved(state, data);
 
@@ -369,9 +411,15 @@ main :: proc() {
 					send_packet(state.p2.socket, round_start_packet);
 
 				case Attack_Data:
+					if get_current_player(&state).id != data.player_id {
+						break;
+					}
+
 					m_data := data;
 					m_data.target_piece_id = cast(u8) state.board[m_data.target_tile.y][m_data.target_tile.x].id
-					attack_with_piece(&state, m_data);
+					ok := attack_with_piece(&state, m_data);
+					if !ok do break;
+
 
 					piece_attacked_packet := encode_piece_attacked(&state, m_data);
 					
@@ -386,7 +434,13 @@ main :: proc() {
 					send_packet(state.p2.socket, round_start_packet);
 				
 				case Ability_Data:
-					use_ability(&state, data);
+					if get_current_player(&state).id != data.player_id {
+						break;
+					}
+
+					ok := use_ability(&state, data);
+					if !ok do break;
+
 
 					used_ability_packet := encode_used_ability(&state, data);
 
