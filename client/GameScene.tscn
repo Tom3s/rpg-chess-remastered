@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3 uid="uid://w6osov1hfnyr"]
+[gd_scene load_steps=5 format=3 uid="uid://w6osov1hfnyr"]
 
 [ext_resource type="PackedScene" uid="uid://dgwdc1dwjva0w" path="res://Board.tscn" id="1_ayk78"]
 [ext_resource type="Script" path="res://GameScene.gd" id="1_lkxyc"]
 [ext_resource type="PackedScene" uid="uid://bcdxo52aqjamx" path="res://UI/PawnAbilityUI.tscn" id="2_7bkxu"]
+[ext_resource type="PackedScene" uid="uid://basl1k22gc07k" path="res://UI/TileSelectUI.tscn" id="3_o2evq"]
 
 [node name="GameScene" type="Node2D"]
 script = ExtResource("1_lkxyc")
@@ -54,6 +55,11 @@ unique_name_in_owner = true
 visible = false
 layout_mode = 1
 
+[node name="TileSelectUI" parent="UI/Control" instance=ExtResource("3_o2evq")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+
 [node name="Board" parent="." instance=ExtResource("1_ayk78")]
 unique_name_in_owner = true
 
@@ -64,4 +70,5 @@ unique_name_in_owner = true
 unique_name_in_owner = true
 
 [node name="Camera" type="Camera2D" parent="."]
+unique_name_in_owner = true
 zoom = Vector2(0.47, 0.47)

@@ -264,10 +264,23 @@ use_ability :: proc(state: ^App_State, data: Ability_Data) -> bool {
 			piece.damage = get_type_dmg(ability_data.type) + 2;
 
 			// fmt.println("[main] ", piece);
+			piece.has_ability = false
 			return true;
 		
 		case Bishop_Ability_Data:
-			return false;
+			if state.board[ability_data.tile.y][ability_data.tile.x] != nil {
+				return false
+			}
+
+			move_piece(state, Move_Piece_Data{
+				player_id = data.player_id,
+				piece_id = piece_id,
+				target_tile = ability_data.tile,
+			}, true)
+
+			piece.has_ability = false
+
+			return true;
 	}
 
 	return false;

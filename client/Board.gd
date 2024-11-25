@@ -49,12 +49,17 @@ const padding = 5
 var hovering_square: Vector2i = Vector2i.MAX
 var reachable_tiles: Array[Vector2i] = []
 var attackable_tiles: Array[Vector2i] = []
+var special_tiles: Array[Vector2i] = []
 
 func _ready() -> void:
 	Network.available_actions_received.connect(func(moves: Array[Vector2i], attacks: Array[Vector2i], _can_use_ability: bool) -> void:
 		set_reachable_tiles(moves)
 		set_attackable_tiles(attacks)
 	)
+
+const REACHABLE_COLOR := Color(0.0, 0.8, 0.2, 0.5)
+const ATTACKABLE_COLOR := Color(0.8, 0.1, 0.2, 0.5)
+const SPECIAL_COLOR := Color(0.6, 0.1, 0.7, 0.5)
 
 func _draw() -> void:
 	if show_top:
@@ -85,20 +90,26 @@ func _draw() -> void:
 			draw_rect(Rect2(posX, posY, GRID_SIZE, GRID_SIZE), currentColor)
 	
 	
-	for tile in reachable_tiles:
-		var posX := tile.x * GRID_SIZE + offset_x # + padding
-		var posY := tile.y * GRID_SIZE + offset_y # + padding
+	if special_tiles.size():
+		for tile in special_tiles:
+			var posX := tile.x * GRID_SIZE + offset_x # + padding
+			var posY := tile.y * GRID_SIZE + offset_y # + padding
+			
+			draw_rect(Rect2(posX, posY, GRID_SIZE, GRID_SIZE), SPECIAL_COLOR)
+
+	else:
+		for tile in reachable_tiles:
+			var posX := tile.x * GRID_SIZE + offset_x # + padding
+			var posY := tile.y * GRID_SIZE + offset_y # + padding
+			
+			draw_rect(Rect2(posX, posY, GRID_SIZE, GRID_SIZE), REACHABLE_COLOR)
 		
-		# draw_rect(Rect2(posX, posY, GRID_SIZE - padding*2, GRID_SIZE - padding*2), Color.DARK_OLIVE_GREEN, false, padding * 2)
-		draw_rect(Rect2(posX, posY, GRID_SIZE, GRID_SIZE), Color(0.0, 0.8, 0.2, 0.5))
-	
-	
-	for tile in attackable_tiles:
-		var posX := tile.x * GRID_SIZE + offset_x # + padding
-		var posY := tile.y * GRID_SIZE + offset_y # + padding
 		
-		# draw_rect(Rect2(posX, posY, GRID_SIZE - padding*2, GRID_SIZE - padding*2), Color.DARK_OLIVE_GREEN, false, padding * 2)
-		draw_rect(Rect2(posX, posY, GRID_SIZE, GRID_SIZE), Color(0.8, 0.1, 0.2, 0.5))
+		for tile in attackable_tiles:
+			var posX := tile.x * GRID_SIZE + offset_x # + padding
+			var posY := tile.y * GRID_SIZE + offset_y # + padding
+			
+			draw_rect(Rect2(posX, posY, GRID_SIZE, GRID_SIZE), ATTACKABLE_COLOR)
 	
 	if hovering_square != Vector2i.MAX:
 		var posX := hovering_square.x * GRID_SIZE + offset_x + padding
@@ -120,18 +131,26 @@ func set_hovering_square(pos: Vector2i) -> void:
 	queue_redraw()
 
 func set_reachable_tiles(tiles: Array[Vector2i]) -> void:
-	
+	special_tiles.clear()
+
 	reachable_tiles = tiles.filter(is_tile_position_valid)
 	queue_redraw()
 
 func set_attackable_tiles(tiles: Array[Vector2i]) -> void:
+	special_tiles.clear()
 	
 	attackable_tiles = tiles.filter(is_tile_position_valid)
+	queue_redraw()
+
+func set_special_tiles(tiles: Array[Vector2i]) -> void:
+	
+	special_tiles = tiles.filter(is_tile_position_valid)
 	queue_redraw()
 
 func clear_interactable_tiles() -> void:
 	reachable_tiles.clear()
 	attackable_tiles.clear()
+	special_tiles.clear()
 	queue_redraw()
 
 func get_closest_tile(pos: Vector2) -> Vector2i:
