@@ -42,3 +42,8 @@ normalize_int :: proc(v: v2i) -> v2i {
 
 	return v;
 }
+
+
+length :: proc(v: v2i) -> f32 {
+	return linalg.sqrt(cast(f32) (v.x * v.x) + cast(f32) (v.y * v.y));
+}

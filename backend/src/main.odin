@@ -2,6 +2,7 @@ package main
 
 import "core:fmt"
 import "core:math/rand"
+import "core:math/linalg"
 import "core:os"
 import "core:strings"
 
@@ -264,12 +265,16 @@ use_ability :: proc(state: ^App_State, data: Ability_Data) -> bool {
 			piece.damage = get_type_dmg(ability_data.type) + 2;
 
 			// fmt.println("[main] ", piece);
-			piece.has_ability = false
+			piece.has_ability = false;
 			return true;
 		
 		case Bishop_Ability_Data:
 			if state.board[ability_data.tile.y][ability_data.tile.x] != nil {
-				return false
+				return false;
+			}
+
+			if length(piece.position - ability_data.tile) != 1.0 {
+				return false;
 			}
 
 			move_piece(state, Move_Piece_Data{
@@ -278,7 +283,7 @@ use_ability :: proc(state: ^App_State, data: Ability_Data) -> bool {
 				target_tile = ability_data.tile,
 			}, true)
 
-			piece.has_ability = false
+			piece.has_ability = false;
 
 			return true;
 	}
