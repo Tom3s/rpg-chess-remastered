@@ -494,8 +494,8 @@ decode_use_ability :: proc(state: ^App_State, data: []byte) -> Ability_Data {
 			}
 		case .BISHOP: 
 			selected_tile: v2i;
-			selected_tile.x = cast(int) data[9]
-			selected_tile.y = cast(int) data[10]
+			selected_tile.x = cast(int) data[9];
+			selected_tile.y = cast(int) data[10];
 
 			return Ability_Data{
 				player_id = player_id,
@@ -507,8 +507,8 @@ decode_use_ability :: proc(state: ^App_State, data: []byte) -> Ability_Data {
 
 		case .ROOK:
 			direction: v2i;
-			direction.x = cast(int) cast(i8) data[9]
-			direction.y = cast(int) cast(i8) data[10]
+			direction.x = cast(int) cast(i8) data[9];
+			direction.y = cast(int) cast(i8) data[10];
 
 			return Ability_Data{
 				player_id = player_id,
