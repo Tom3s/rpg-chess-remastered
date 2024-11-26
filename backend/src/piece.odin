@@ -24,6 +24,8 @@ Piece :: struct {
 	max_health: int,
 	damage: int,
 	// armor: int,
+
+	has_ability: bool,
 	
 	type: PIECE_TYPE,
 
@@ -99,6 +101,8 @@ init_piece :: proc(type: PIECE_TYPE, owner: i64, position: v2i = {0, 0}, id: int
 	piece.damage = get_type_dmg(type);
 
 	piece.max_health = piece.health;
+
+	piece.has_ability = true;
 
 	return piece;
 }
@@ -608,6 +612,8 @@ get_landing_tile :: proc(state: ^App_State, target_piece, attacking_piece: Piece
 }
 
 check_ability_eligibility :: proc(state: App_State, piece: Piece, throw: int) -> bool {
+	if !piece.has_ability do return false;
+
 	switch (piece.type) {
 		case .PAWN:
 			location_reached := false;
@@ -623,7 +629,7 @@ check_ability_eligibility :: proc(state: App_State, piece: Piece, throw: int) ->
 			return throw >= 3 && location_reached;
 			
 		case .BISHOP:
-			return false;
+			return throw >= 3;
 
 		case .KNIGHT:
 			return false;

@@ -11,6 +11,7 @@ class_name GameScene
 
 # ability UIs
 @onready var pawn_ability_ui: PawnAbilityUI = %PawnAbilityUI
+@onready var tile_select_ui: TileSelectUI = %TileSelectUI
 
 var current_player: int
 var current_throw: int
@@ -41,8 +42,8 @@ class BoardData:
 			return null
 
 		var piece: Piece = board_data[index]
-		print("[GameScene.gd] Board data index: ", index)
-		print("[GameScene.gd] Selected piece: ", piece)
+		# print("[GameScene.gd] Board data index: ", index)
+		# print("[GameScene.gd] Selected piece: ", piece)
 
 		return piece
 
@@ -244,7 +245,7 @@ func use_ability() -> void:
 			pawn_ability_ui.visible = true
 
 			await pawn_ability_ui.piece_type_selected
-			print("[GameScene.gd] Ability use sequence over; Selected: ", GlobalNames.PIECE_TYPE.keys()[vals.type])
+			print("[GameScene.gd] Pawn ability sequence over; Selected: ", GlobalNames.PIECE_TYPE.keys()[vals.type])
 
 			Network.send_use_ability_packet(
 				selected_piece,
@@ -256,7 +257,45 @@ func use_ability() -> void:
 		GlobalNames.PIECE_TYPE.ROOK:
 			pass
 		GlobalNames.PIECE_TYPE.BISHOP:
-			pass
+			var special_tiles: Array[Vector2i] = []
+
+			var neighbors: Array[Vector2i] = [
+				Vector2i(1, 0),
+				Vector2i(-1, 0),
+				Vector2i(0, 1),
+				Vector2i(0, -1),
+			]
+
+			for neighbor in neighbors:
+				if board_data.get_tile(selected_piece.position_on_board + neighbor) == null:
+					special_tiles.push_back(selected_piece.position_on_board + neighbor)
+
+			if special_tiles.size() == 0:
+				return
+
+			board.set_special_tiles(special_tiles)
+
+			var vals := {"tile": Vector2i.MAX}
+
+			tile_select_ui.tile_clicked.connect(func(tile: Vector2i) -> void:
+				vals.tile = tile
+			)
+			tile_select_ui.board = board
+			tile_select_ui.camera = %Camera
+			tile_select_ui.visible = true
+
+			await tile_select_ui.tile_clicked
+
+			print("[GameScene.gd] Bishop ability sequence over; Selected: ", vals.tile)
+
+			Network.send_use_ability_packet(
+				selected_piece,
+				{
+					"selected_tile": vals.tile
+				}
+			)
+
+
 		GlobalNames.PIECE_TYPE.KNIGHT:
 			pass
 		GlobalNames.PIECE_TYPE.QUEEN:
@@ -276,5 +315,9 @@ func resolve_used_ability(player_id: int, piece_id: int, ability_data: Dictionar
 		GlobalNames.PIECE_TYPE.PAWN:
 			piece.piece_type = ability_data.new_type
 			piece.damage = ability_data.new_dmg
+		GlobalNames.PIECE_TYPE.BISHOP:
+			board_data.set_tile(ability_data.new_position, piece)
+			board_data.set_tile(piece.position_on_board, null)
+			piece.set_position_on_board(ability_data.new_position, board)
 		_:
 			pass
