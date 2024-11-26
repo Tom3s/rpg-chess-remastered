@@ -286,6 +286,53 @@ use_ability :: proc(state: ^App_State, data: Ability_Data) -> bool {
 			piece.has_ability = false;
 
 			return true;
+		
+		case Rook_Ability_Data:
+			dir := ability_data.direction;
+
+			affected_tiles := make([dynamic]v2i, 0);
+			defer delete(affected_tiles);
+
+			found_piece := false;
+			last_safe_tile := piece.position;
+			for i in 1..=BOARD_SIZE {
+				current_tile := piece.position + i * dir;
+
+				if !valid_board_place(current_tile) {
+					break;
+				}
+
+				if state.board[current_tile.y][current_tile.x] == nil {
+					last_safe_tile = current_tile;
+					if found_piece {
+						break;
+					} else {
+						continue;
+					}
+				}
+
+				append(&affected_tiles, current_tile);
+				found_piece = true;
+			}
+
+			// apply damages
+
+			for tile in affected_tiles {
+				damage_piece(state, state.board[tile.y][tile.x], piece, 2);
+			}
+
+			// move rook to final position
+			move_piece(state, Move_Piece_Data{
+				player_id = data.player_id,
+				piece_id = piece_id,
+				target_tile = last_safe_tile,
+			}, true)
+
+			piece.has_ability = false;
+
+			print_board(state^);
+
+			return true;
 	}
 
 	return false;

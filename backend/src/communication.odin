@@ -169,10 +169,14 @@ Pawn_Ability_Data :: struct {
 Bishop_Ability_Data :: struct {
 	tile: v2i
 }
+Rook_Ability_Data :: struct {
+	direction: v2i
+}
 
 Ability_Extra_Data :: union #no_nil {
 	Pawn_Ability_Data,
 	Bishop_Ability_Data,
+	Rook_Ability_Data,
 }
 
 Ability_Data :: struct {
@@ -469,9 +473,22 @@ decode_use_ability :: proc(state: ^App_State, data: []byte) -> Ability_Data {
 					tile = selected_tile,
 				}
 			}
-		case .KNIGHT: fallthrough
-		case .QUEEN: fallthrough
+
 		case .ROOK:
+			direction: v2i;
+			direction.x = cast(int) data[9]
+			direction.y = cast(int) data[10]
+
+			return Ability_Data{
+				player_id = player_id,
+				piece_id = piece_id,
+				data = Rook_Ability_Data{
+					direction = direction,
+				}
+			}
+
+		case .KNIGHT: fallthrough
+		case .QUEEN: 
 			return {};
 	}
 	return {};
@@ -693,6 +710,9 @@ encode_used_ability :: proc(state: ^App_State, data: Ability_Data) -> []byte {
 			append(&packet_data, cast(u8) PIECE_TYPE.BISHOP);
 			append(&packet_data, cast(u8) piece.position.x);
 			append(&packet_data, cast(u8) piece.position.y);
+		
+		case Rook_Ability_Data:
+			panic("");
 	}
 
 	packet_data[1] = cast(byte) len(packet_data) - 2;

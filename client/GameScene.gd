@@ -254,8 +254,38 @@ func use_ability() -> void:
 				}
 			)
 
+
 		GlobalNames.PIECE_TYPE.ROOK:
-			pass
+			var neighbors: Array[Vector2i] = [
+				selected_piece.position_on_board + Vector2i(1, 0),
+				selected_piece.position_on_board + Vector2i(-1, 0),
+				selected_piece.position_on_board + Vector2i(0, 1),
+				selected_piece.position_on_board + Vector2i(0, -1),
+			]
+
+			board.set_special_tiles(neighbors)
+
+			var vals := {"direction": Vector2i.MAX}
+
+			tile_select_ui.tile_clicked.connect(func(direction: Vector2i) -> void:
+				vals.direction = direction - selected_piece.position_on_board
+			)
+			tile_select_ui.board = board
+			tile_select_ui.camera = %Camera
+			tile_select_ui.visible = true
+
+			await tile_select_ui.tile_clicked
+
+			print("[GameScene.gd] Rook ability sequence over; Selected: ", vals.direction)
+
+			Network.send_use_ability_packet(
+				selected_piece,
+				{
+					"direction": vals.direction
+				}
+			)
+
+
 		GlobalNames.PIECE_TYPE.BISHOP:
 			var special_tiles: Array[Vector2i] = []
 

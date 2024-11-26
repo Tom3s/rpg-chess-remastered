@@ -254,13 +254,17 @@ func send_use_ability_packet(piece: Piece, ability_data: Dictionary) -> void:
 		GlobalNames.PIECE_TYPE.PAWN:
 			packet_data.resize(packet_data.size() + 1)
 			packet_data.encode_u8(11, ability_data.selected_type)
+			
 		GlobalNames.PIECE_TYPE.ROOK:
-			pass
+			packet_data.resize(packet_data.size() + 2)
+			packet_data.encode_u8(11, ability_data.direction.x)
+			packet_data.encode_u8(12, ability_data.direction.y)
+			
 		GlobalNames.PIECE_TYPE.BISHOP:
 			packet_data.resize(packet_data.size() + 2)
 			packet_data.encode_u8(11, ability_data.selected_tile.x)
 			packet_data.encode_u8(12, ability_data.selected_tile.y)
-			pass
+			
 		GlobalNames.PIECE_TYPE.KNIGHT:
 			pass
 		GlobalNames.PIECE_TYPE.QUEEN:
