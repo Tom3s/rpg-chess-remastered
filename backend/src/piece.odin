@@ -533,6 +533,13 @@ get_available_actions :: proc(state: App_State, piece: Piece, cost: int) -> []Ac
 	return slice.reinterpret([]Action, moves[:]);
 }
 
+valid_board_place :: proc(move: v2i) -> bool {
+	if move.x < 0 || move.x >= BOARD_SIZE do return false;
+	if move.y < 0 || move.y >= BOARD_SIZE do return false;
+
+	return true;
+}
+
 @private
 valid_move :: proc(state: App_State, move: v2i) -> bool {
 	if move.x < 0 || move.x >= BOARD_SIZE do return false;
@@ -554,9 +561,9 @@ valid_attack :: proc(state: App_State, move: v2i, piece_owner: i64, cost: int) -
 	return state.board[move.y][move.x].owner != piece_owner;
 }
 
-damage_piece :: proc(state: ^App_State, target_piece, attacking_piece: ^Piece) -> v2i {
+damage_piece :: proc(state: ^App_State, target_piece, attacking_piece: ^Piece, multiplier: int = 1) -> v2i {
 	fmt.println("[piece] ", attacking_piece, " is attacking ", target_piece);
-	target_piece.health -= attacking_piece.damage;
+	target_piece.health -= attacking_piece.damage * multiplier;
 
 	landing_tile := get_landing_tile(state, target_piece^, attacking_piece^);
 	if target_piece.health <= 0 {
@@ -632,13 +639,13 @@ check_ability_eligibility :: proc(state: App_State, piece: Piece, throw: int) ->
 			return throw >= 3;
 
 		case .KNIGHT:
-			return false;
+			return false
 
 		case .QUEEN:
 			return false;
 
 		case .ROOK:
-			return false;
+			return throw >= 5;
 	}
 
 	return false;

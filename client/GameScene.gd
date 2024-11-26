@@ -204,14 +204,26 @@ func resolve_attack(player_id: int, piece_id: int, target_piece_id: int, new_hp:
 	var attacking_piece: Piece = piece_parent.get_child(piece_id)
 	var target_piece: Piece = target_piece_parent.get_child(target_piece_id)
 
-	board_data.set_tile(attacking_piece.position_on_board, null)
-	attacking_piece.set_position_on_board(landing_tile, board)
-
-	board_data.set_tile(attacking_piece.position_on_board, attacking_piece)
+	# board_data.set_tile(attacking_piece.position_on_board, null)
+	# attacking_piece.set_position_on_board(landing_tile, board)
+	# board_data.set_tile(attacking_piece.position_on_board, attacking_piece)
+	move_piece(player_id, piece_id, landing_tile)
 
 	target_piece.set_hp(new_hp)
+	if target_piece.health <= 0:
+		board_data.set_tile(target_piece.position_on_board, null)
 
 	selected_piece = null
+
+func damage_tile(tile: Vector2i, new_hp: int) -> void:
+	var target_piece: Piece = board_data.get_tile(tile)
+
+	target_piece.set_hp(new_hp)
+	if target_piece.health <= 0:
+		board_data.set_tile(target_piece.position_on_board, null)
+
+	selected_piece = null
+
 
 func start_round(player: int, throw: int) -> void:
 	current_player = player
@@ -239,12 +251,17 @@ func use_ability() -> void:
 	match selected_piece.piece_type:
 		GlobalNames.PIECE_TYPE.PAWN:
 			var vals := {"type": GlobalNames.PIECE_TYPE.NONE}
-			pawn_ability_ui.piece_type_selected.connect(func(type: GlobalNames.PIECE_TYPE) -> void:
+			
+			var lamdba := func(type: GlobalNames.PIECE_TYPE) -> void:
 				vals.type = type
-			)
+
+			pawn_ability_ui.piece_type_selected.connect(lamdba)
 			pawn_ability_ui.visible = true
 
 			await pawn_ability_ui.piece_type_selected
+			
+			pawn_ability_ui.piece_type_selected.disconnect(lamdba)
+			
 			print("[GameScene.gd] Pawn ability sequence over; Selected: ", GlobalNames.PIECE_TYPE.keys()[vals.type])
 
 			Network.send_use_ability_packet(
@@ -254,8 +271,41 @@ func use_ability() -> void:
 				}
 			)
 
+
 		GlobalNames.PIECE_TYPE.ROOK:
-			pass
+			var neighbors: Array[Vector2i] = [
+				selected_piece.position_on_board + Vector2i(1, 0),
+				selected_piece.position_on_board + Vector2i(-1, 0),
+				selected_piece.position_on_board + Vector2i(0, 1),
+				selected_piece.position_on_board + Vector2i(0, -1),
+			]
+
+			board.set_special_tiles(neighbors)
+
+			var vals := {"direction": Vector2i.MAX}
+
+			var lamdba := func(direction: Vector2i) -> void:
+				vals.direction = direction - selected_piece.position_on_board
+
+			tile_select_ui.tile_clicked.connect(lamdba)
+			tile_select_ui.board = board
+			tile_select_ui.camera = %Camera
+			tile_select_ui.visible = true
+
+			await tile_select_ui.tile_clicked
+
+			tile_select_ui.tile_clicked.disconnect(lamdba)
+
+			print("[GameScene.gd] Rook ability sequence over; Selected: ", vals.direction)
+
+			Network.send_use_ability_packet(
+				selected_piece,
+				{
+					"direction": vals.direction
+				}
+			)
+
+
 		GlobalNames.PIECE_TYPE.BISHOP:
 			var special_tiles: Array[Vector2i] = []
 
@@ -277,14 +327,17 @@ func use_ability() -> void:
 
 			var vals := {"tile": Vector2i.MAX}
 
-			tile_select_ui.tile_clicked.connect(func(tile: Vector2i) -> void:
+			var lambda := func(tile: Vector2i) -> void:
 				vals.tile = tile
-			)
+
+			tile_select_ui.tile_clicked.connect(lambda)
 			tile_select_ui.board = board
 			tile_select_ui.camera = %Camera
 			tile_select_ui.visible = true
 
 			await tile_select_ui.tile_clicked
+
+			tile_select_ui.tile_clicked.disconnect(lambda)
 
 			print("[GameScene.gd] Bishop ability sequence over; Selected: ", vals.tile)
 
@@ -315,9 +368,26 @@ func resolve_used_ability(player_id: int, piece_id: int, ability_data: Dictionar
 		GlobalNames.PIECE_TYPE.PAWN:
 			piece.piece_type = ability_data.new_type
 			piece.damage = ability_data.new_dmg
+		
+		
 		GlobalNames.PIECE_TYPE.BISHOP:
 			board_data.set_tile(ability_data.new_position, piece)
 			board_data.set_tile(piece.position_on_board, null)
 			piece.set_position_on_board(ability_data.new_position, board)
+		
+
+		GlobalNames.PIECE_TYPE.ROOK:
+			# print("[GameScene.gd] Rook used ability: ", ability_data)
+			var i: int = 0
+			# for i in ability_data.tiles.size():
+			while i < ability_data.tiles.size():
+				# var target_piece: Piece = board_data.get_tile(ability_data.tiles[i])
+				# resolve_attack(player_id, piece_id, target_piece.id, ability_data.new_hps[i], ability_data.landing_tile)
+				damage_tile(ability_data.tiles[i], ability_data.new_hps[i])
+
+				i += 1
+			
+			move_piece(player_id, piece_id, ability_data.landing_tile)
+
 		_:
 			pass

@@ -250,14 +250,21 @@ attack_with_piece :: proc(state: ^App_State, data: Attack_Data) -> bool {
 	return true;
 }
 
-use_ability :: proc(state: ^App_State, data: Ability_Data) -> bool {
+use_ability :: proc(state: ^App_State, data: Ability_Data) -> Used_Ability_Result {
+	fmt.println("[main] Ability Data:\n", data);
+
 	player := get_player_with_id(state, data.player_id);
 	piece_id := data.piece_id;
 	piece := &player.pieces[piece_id];
 
 	can_use_ability := check_ability_eligibility(state^, piece^, state.current_throw);
 
-	if !can_use_ability do return false;
+	result: Used_Ability_Result;
+	result.ok = false;
+	result.piece_id = piece_id;
+	result.player_id = player.id;
+
+	if !can_use_ability do return result;
 
 	switch ability_data in data.data {
 		case Pawn_Ability_Data:
@@ -266,15 +273,21 @@ use_ability :: proc(state: ^App_State, data: Ability_Data) -> bool {
 
 			// fmt.println("[main] ", piece);
 			piece.has_ability = false;
-			return true;
+			
+			result.data = Pawn_Ability_Result{
+				new_type = piece.type,
+				new_damage = piece.damage,
+			}
+			result.ok = true;
+			return result;
 		
 		case Bishop_Ability_Data:
 			if state.board[ability_data.tile.y][ability_data.tile.x] != nil {
-				return false;
+				return result;
 			}
 
 			if length(piece.position - ability_data.tile) != 1.0 {
-				return false;
+				return result;
 			}
 
 			move_piece(state, Move_Piece_Data{
@@ -285,10 +298,71 @@ use_ability :: proc(state: ^App_State, data: Ability_Data) -> bool {
 
 			piece.has_ability = false;
 
-			return true;
+			result.data = Bishop_Ability_Result{
+				new_tile = piece.position,
+			}
+			result.ok = true;
+			return result;
+		
+		case Rook_Ability_Data:
+			dir := ability_data.direction;
+
+			affected_tiles := make([dynamic]v2i, 0);
+			// defer delete(affected_tiles);
+			new_hps := make([dynamic]int, 0);
+			// defer delete(new_hps);
+
+			found_piece := false;
+			last_safe_tile := piece.position;
+			for i in 1..=BOARD_SIZE {
+				current_tile := piece.position + i * dir;
+
+				if !valid_board_place(current_tile) {
+					break;
+				}
+
+				if state.board[current_tile.y][current_tile.x] == nil {
+					last_safe_tile = current_tile;
+					if found_piece {
+						break;
+					} else {
+						continue;
+					}
+				}
+
+				append(&affected_tiles, current_tile);
+				found_piece = true;
+			}
+
+			// apply damages
+
+			for tile in affected_tiles {
+				target := state.board[tile.y][tile.x]
+				damage_piece(state, state.board[tile.y][tile.x], piece, 2);
+				append(&new_hps, target.health);
+			}
+
+			// move rook to final position
+			move_piece(state, Move_Piece_Data{
+				player_id = data.player_id,
+				piece_id = piece_id,
+				target_tile = last_safe_tile,
+			}, true)
+
+			piece.has_ability = false;
+
+			print_board(state^);
+
+			result.data = Rook_Ability_Result{
+				tiles = affected_tiles[:],
+				new_hp = new_hps[:],
+				landing_tile = piece.position,
+			}
+			result.ok = true;
+			return result;
 	}
 
-	return false;
+	return result;
 }
 
 start_round :: proc(state: ^App_State) {
@@ -456,11 +530,12 @@ main :: proc() {
 						break;
 					}
 
-					ok := use_ability(&state, data);
-					if !ok do break;
+					result := use_ability(&state, data);
+					fmt.println("[main] Ability Result:\n", result);
+					if !result.ok do break;
 
 
-					used_ability_packet := encode_used_ability(&state, data);
+					used_ability_packet := encode_used_ability(&state, result);
 
 					send_packet(state.p1.socket, used_ability_packet);
 					send_packet(state.p2.socket, used_ability_packet);

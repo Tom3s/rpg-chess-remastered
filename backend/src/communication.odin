@@ -169,16 +169,51 @@ Pawn_Ability_Data :: struct {
 Bishop_Ability_Data :: struct {
 	tile: v2i
 }
+Rook_Ability_Data :: struct {
+	direction: v2i
+}
 
 Ability_Extra_Data :: union #no_nil {
 	Pawn_Ability_Data,
 	Bishop_Ability_Data,
+	Rook_Ability_Data,
 }
 
 Ability_Data :: struct {
 	player_id: i64,
 	piece_id: u8,
 	data: Ability_Extra_Data,
+}
+
+Empty_Ability_Result :: struct {}
+
+Pawn_Ability_Result :: struct {
+	new_type: PIECE_TYPE,
+	new_damage: int,
+}
+
+Bishop_Ability_Result :: struct {
+	new_tile: v2i,
+}
+
+Rook_Ability_Result :: struct {
+	tiles: []v2i,
+	new_hp: []int,
+	landing_tile: v2i,
+}
+
+Used_Ability_Data :: union #no_nil {
+	Empty_Ability_Result,
+	Pawn_Ability_Result,
+	Bishop_Ability_Result,
+	Rook_Ability_Result,
+}
+
+Used_Ability_Result :: struct {
+	ok: bool,
+	player_id: i64,
+	piece_id: u8,
+	data: Used_Ability_Data,
 }
 
 Decoded_Packet :: union #no_nil {
@@ -459,8 +494,8 @@ decode_use_ability :: proc(state: ^App_State, data: []byte) -> Ability_Data {
 			}
 		case .BISHOP: 
 			selected_tile: v2i;
-			selected_tile.x = cast(int) data[9]
-			selected_tile.y = cast(int) data[10]
+			selected_tile.x = cast(int) data[9];
+			selected_tile.y = cast(int) data[10];
 
 			return Ability_Data{
 				player_id = player_id,
@@ -469,9 +504,22 @@ decode_use_ability :: proc(state: ^App_State, data: []byte) -> Ability_Data {
 					tile = selected_tile,
 				}
 			}
-		case .KNIGHT: fallthrough
-		case .QUEEN: fallthrough
+
 		case .ROOK:
+			direction: v2i;
+			direction.x = cast(int) cast(i8) data[9];
+			direction.y = cast(int) cast(i8) data[10];
+
+			return Ability_Data{
+				player_id = player_id,
+				piece_id = piece_id,
+				data = Rook_Ability_Data{
+					direction = direction,
+				}
+			}
+
+		case .KNIGHT: fallthrough
+		case .QUEEN: 
 			return {};
 	}
 	return {};
@@ -667,7 +715,7 @@ encode_round_start :: proc(state: App_State) -> []byte {
 	return slice.reinterpret([]byte, packet_data[:]);
 }
 
-encode_used_ability :: proc(state: ^App_State, data: Ability_Data) -> []byte {
+encode_used_ability :: proc(state: ^App_State, data: Used_Ability_Result) -> []byte {
 	packet_data := make([dynamic]byte, 2);
 	packet_data[0] = cast(byte) SERVER_PACKET_TYPE.USED_ABILITY;
 
@@ -678,21 +726,33 @@ encode_used_ability :: proc(state: ^App_State, data: Ability_Data) -> []byte {
 	append(&packet_data, cast(u8) data.piece_id);
 
 	switch ability_data in data.data {
-		case Pawn_Ability_Data:
-			player := get_player_with_id(state, data.player_id);
-			piece := player.pieces[data.piece_id];
+		case Empty_Ability_Result:
+			return {};
 
+		case Pawn_Ability_Result:
+			// player := get_player_with_id(state, data.player_id);
+			// piece := player.pieces[data.piece_id];
 			append(&packet_data, cast(u8) PIECE_TYPE.PAWN);
-			append(&packet_data, cast(u8) piece.type);
-			append(&packet_data, cast(u8) piece.damage);
+			append(&packet_data, cast(u8) ability_data.new_type);
+			append(&packet_data, cast(u8) ability_data.new_damage);
 
-		case Bishop_Ability_Data:
-			player := get_player_with_id(state, data.player_id);
-			piece := player.pieces[data.piece_id];
-
+		case Bishop_Ability_Result:
+			// player := get_player_with_id(state, data.player_id);
+			// piece := player.pieces[data.piece_id];
 			append(&packet_data, cast(u8) PIECE_TYPE.BISHOP);
-			append(&packet_data, cast(u8) piece.position.x);
-			append(&packet_data, cast(u8) piece.position.y);
+			append(&packet_data, cast(u8) ability_data.new_tile.x);
+			append(&packet_data, cast(u8) ability_data.new_tile.y);
+		
+		case Rook_Ability_Result:
+			// panic("");
+			append(&packet_data, cast(u8) PIECE_TYPE.ROOK);
+			append(&packet_data, cast(u8) ability_data.landing_tile.x);
+			append(&packet_data, cast(u8) ability_data.landing_tile.y);
+			for i in 0..<len(ability_data.tiles) {
+				append(&packet_data, cast(u8) ability_data.tiles[i].x);
+				append(&packet_data, cast(u8) ability_data.tiles[i].y);
+				append(&packet_data, cast(u8) cast(i8) ability_data.new_hp[i]);
+			}
 	}
 
 	packet_data[1] = cast(byte) len(packet_data) - 2;

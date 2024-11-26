@@ -254,13 +254,17 @@ func send_use_ability_packet(piece: Piece, ability_data: Dictionary) -> void:
 		GlobalNames.PIECE_TYPE.PAWN:
 			packet_data.resize(packet_data.size() + 1)
 			packet_data.encode_u8(11, ability_data.selected_type)
+			
 		GlobalNames.PIECE_TYPE.ROOK:
-			pass
+			packet_data.resize(packet_data.size() + 2)
+			packet_data.encode_s8(11, ability_data.direction.x)
+			packet_data.encode_s8(12, ability_data.direction.y)
+			
 		GlobalNames.PIECE_TYPE.BISHOP:
 			packet_data.resize(packet_data.size() + 2)
 			packet_data.encode_u8(11, ability_data.selected_tile.x)
 			packet_data.encode_u8(12, ability_data.selected_tile.y)
-			pass
+			
 		GlobalNames.PIECE_TYPE.KNIGHT:
 			pass
 		GlobalNames.PIECE_TYPE.QUEEN:
@@ -427,6 +431,39 @@ func decode_packet(packet_type: SERVER_PACKET_TYPE, data: PackedByteArray) -> vo
 							"new_position": new_position,
 						}
 					)
+				GlobalNames.PIECE_TYPE.ROOK:
+					var landing_tile: Vector2i
+
+					landing_tile.x = data.decode_u8(10)
+					landing_tile.y = data.decode_u8(11)
+
+					var tiles: Array[Vector2i]
+					var new_hps: Array[int]
+
+					var index := 12
+
+					while index < data.size():
+						var tile: Vector2i
+						tile.x = data.decode_u8(index)
+						tile.y = data.decode_u8(index + 1)
+						
+						var hp := data.decode_s8(index + 2)
+
+						tiles.push_back(tile)
+						new_hps.push_back(hp)
+
+						index += 3
+					
+					call_deferred("emit_signal", "ability_used", 
+						player_id, piece_id,
+						{
+							"landing_tile": landing_tile,
+							"tiles": tiles,
+							"new_hps": new_hps,
+						}
+					)
+
+
 				_:
 					pass
 
