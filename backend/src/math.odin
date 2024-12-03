@@ -47,3 +47,7 @@ normalize_int :: proc(v: v2i) -> v2i {
 length :: proc(v: v2i) -> f32 {
 	return linalg.sqrt(cast(f32) (v.x * v.x) + cast(f32) (v.y * v.y));
 }
+
+distance :: proc(v1, v2: v2i) -> f32 {
+	return length(v1 - v2);
+}

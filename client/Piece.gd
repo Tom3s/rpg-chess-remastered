@@ -72,6 +72,13 @@ func set_hp(new_hp: int) -> void:
 	if health <= 0:
 		visible = false
 
+	refresh_health_label()
+
+func heal(amount: int) -> void:
+	health = min(health + amount, max_health)
+	refresh_health_label()
+
+func refresh_health_label() -> void:
 	hp_label.text = "\nHP: " + str(health) + "/" + str(max_health)
 
 func _to_string() -> String:

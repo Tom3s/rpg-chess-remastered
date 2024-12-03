@@ -63,6 +63,18 @@ import "core:slice"
 		new_type: u8 (1 byte -> enum)
 		new_dmg: u8 (1 byte)
 
+		BISHOP:
+		new_tile: u8 x 2 (2 bytes)
+
+		ROOK:
+		landing_tile: u8 x 2 (2 bytes)
+		n x affected_tile: u8 x 2 (2 bytes)
+		    new_hp: i8 (1 byte)
+		
+		QUEEN:
+		heal_amount: u8 (1 byte)
+		n x healed_pieces: u8 (1 byte)
+
 */
 
 // aka from server -> to client packets
@@ -172,11 +184,15 @@ Bishop_Ability_Data :: struct {
 Rook_Ability_Data :: struct {
 	direction: v2i
 }
+Queen_Ability_Data :: struct {
+	_placeholder: i64, 
+}
 
 Ability_Extra_Data :: union #no_nil {
 	Pawn_Ability_Data,
 	Bishop_Ability_Data,
 	Rook_Ability_Data,
+	Queen_Ability_Data,
 }
 
 Ability_Data :: struct {
@@ -202,11 +218,16 @@ Rook_Ability_Result :: struct {
 	landing_tile: v2i,
 }
 
+Queen_Ability_Result :: struct {
+	healed_pieces: []int,
+}
+
 Used_Ability_Data :: union #no_nil {
 	Empty_Ability_Result,
 	Pawn_Ability_Result,
 	Bishop_Ability_Result,
 	Rook_Ability_Result,
+	Queen_Ability_Result,
 }
 
 Used_Ability_Result :: struct {
@@ -518,8 +539,14 @@ decode_use_ability :: proc(state: ^App_State, data: []byte) -> Ability_Data {
 				}
 			}
 
-		case .KNIGHT: fallthrough
-		case .QUEEN: 
+		case .QUEEN:
+			return Ability_Data{
+				player_id = player_id,
+				piece_id = piece_id,
+				data = Queen_Ability_Data{}
+			}
+			
+		case .KNIGHT: 
 			return {};
 	}
 	return {};
@@ -752,6 +779,13 @@ encode_used_ability :: proc(state: ^App_State, data: Used_Ability_Result) -> []b
 				append(&packet_data, cast(u8) ability_data.tiles[i].x);
 				append(&packet_data, cast(u8) ability_data.tiles[i].y);
 				append(&packet_data, cast(u8) cast(i8) ability_data.new_hp[i]);
+			}
+
+		case Queen_Ability_Result:
+			append(&packet_data, cast(u8) PIECE_TYPE.QUEEN);
+			append(&packet_data, cast(u8) QUEEN_HEAL);
+			for i in 0..<len(ability_data.healed_pieces) {
+				append(&packet_data, cast(u8) ability_data.healed_pieces[i])
 			}
 	}
 

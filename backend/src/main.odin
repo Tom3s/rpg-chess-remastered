@@ -27,6 +27,16 @@ Player :: struct {
 NR_PIECES :: 14;
 BOARD_SIZE :: 9;
 
+BOARD_DISTANCES: []f32 = {
+	0.0, // 0
+	1.5, // 1
+	2.4, // 2
+	3.3, // 3
+	4.4, // 4
+	5.2, // 5
+	6.1, // 6
+}
+
 App_State :: struct {
 	mutex: sync.Mutex,
 	accepting_connection: sync.Mutex,
@@ -360,6 +370,28 @@ use_ability :: proc(state: ^App_State, data: Ability_Data) -> Used_Ability_Resul
 			}
 			result.ok = true;
 			return result;
+		
+		case Queen_Ability_Data:
+			healed_pieces := make([dynamic]int, 0);
+
+			queen_tile := piece.position;
+
+			for &friendly_piece in player.pieces {
+				if friendly_piece.health <= 0 do continue;
+				if friendly_piece.health == friendly_piece.max_health do continue;
+				
+				if distance(queen_tile, friendly_piece.position) < BOARD_DISTANCES[state.current_throw - 2] {
+					append(&healed_pieces, friendly_piece.id);
+					heal_piece(state, &friendly_piece, QUEEN_HEAL);
+				}
+			}
+
+			result.data = Queen_Ability_Result{
+				healed_pieces = healed_pieces[:],
+			}
+			result.ok = true;
+			return result;
+
 	}
 
 	return result;

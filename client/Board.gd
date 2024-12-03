@@ -5,6 +5,16 @@ class_name Board
 const GRID_SIZE = 128
 const BORDER_SIZE = 48
 
+const DISTANCES := [
+	0.0,
+	1.5,
+	2.4,
+	3.3,
+	4.4,
+	5.2,
+	6.1,
+]
+
 @export
 var width: int = 9:
 	set(new_width): 
