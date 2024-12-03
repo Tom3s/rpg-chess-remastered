@@ -268,6 +268,7 @@ func send_use_ability_packet(piece: Piece, ability_data: Dictionary) -> void:
 		GlobalNames.PIECE_TYPE.KNIGHT:
 			pass
 		GlobalNames.PIECE_TYPE.QUEEN:
+			# no extra data needed
 			pass
 
 	packet_data.encode_u8(1, packet_data.size() - 2)
@@ -460,6 +461,28 @@ func decode_packet(packet_type: SERVER_PACKET_TYPE, data: PackedByteArray) -> vo
 							"landing_tile": landing_tile,
 							"tiles": tiles,
 							"new_hps": new_hps,
+						}
+					)
+
+
+				GlobalNames.PIECE_TYPE.QUEEN:
+					var healed_pieces: Array[int]
+
+					var heal_amount := data.decode_u8(10)
+
+
+					var index := 11
+
+					while index < data.size():
+						var healed_piece := data.decode_u8(index)
+						healed_pieces.push_back(healed_piece)
+						index += 1
+
+					call_deferred("emit_signal", "ability_used", 
+						player_id, piece_id,
+						{
+							"heal_amount": heal_amount,
+							"healed_pieces": healed_pieces, 
 						}
 					)
 

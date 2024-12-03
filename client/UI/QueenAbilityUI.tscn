@@ -1,0 +1,40 @@
+[gd_scene load_steps=3 format=3 uid="uid://hd22dcacu7cd"]
+
+[ext_resource type="Script" path="res://UI/QueenAbilityUI.gd" id="1_h26lw"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_cx6kv"]
+bg_color = Color(0.51, 0, 0.4675, 0.0352941)
+
+[node name="QueenAbilityUI" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_h26lw")
+
+[node name="PanelContainer" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_cx6kv")
+
+[node name="ButtonContainer" type="VBoxContainer" parent="PanelContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+alignment = 1
+
+[node name="Accept" type="Button" parent="PanelContainer/ButtonContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Heal in range"
+
+[node name="Cancel" type="Button" parent="PanelContainer/ButtonContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Cancel"

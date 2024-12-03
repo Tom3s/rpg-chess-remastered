@@ -47,6 +47,8 @@ Action :: struct {
 	cost: int,
 }
 
+QUEEN_HEAL :: 3;
+
 get_type_hp :: proc(type: PIECE_TYPE) -> int{
 	switch (type) {
 		case .PAWN:
@@ -578,6 +580,13 @@ damage_piece :: proc(state: ^App_State, target_piece, attacking_piece: ^Piece, m
 	return landing_tile;
 }
 
+heal_piece :: proc(state: ^App_State, piece: ^Piece, heal: int) -> int {
+	old_health := piece.health;
+	piece.health = min(piece.health + heal, piece.max_health);
+
+	return piece.health - old_health;
+}
+
 kill_piece :: proc(state: ^App_State, target_piece: ^Piece) {
 	state.board[target_piece.position.y][target_piece.position.x] = nil;
 }
@@ -642,7 +651,7 @@ check_ability_eligibility :: proc(state: App_State, piece: Piece, throw: int) ->
 			return false
 
 		case .QUEEN:
-			return false;
+			return throw >= 5;
 
 		case .ROOK:
 			return throw >= 5;

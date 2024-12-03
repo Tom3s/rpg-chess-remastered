@@ -1,0 +1,12 @@
+[gd_scene load_steps=3 format=3 uid="uid://db1ep1jshdtnk"]
+
+[ext_resource type="Script" path="res://debug/distance_test_scene.gd" id="1_u643n"]
+[ext_resource type="PackedScene" uid="uid://dgwdc1dwjva0w" path="res://Board.tscn" id="2_blba1"]
+
+[node name="distance_test_scene" type="Node2D"]
+script = ExtResource("1_u643n")
+ref_tile = Vector2i(3, 3)
+distance = 3.4
+
+[node name="Board" parent="." instance=ExtResource("2_blba1")]
+unique_name_in_owner = true

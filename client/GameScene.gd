@@ -12,6 +12,7 @@ class_name GameScene
 # ability UIs
 @onready var pawn_ability_ui: PawnAbilityUI = %PawnAbilityUI
 @onready var tile_select_ui: TileSelectUI = %TileSelectUI
+@onready var queen_ability_ui: QueenAbilityUI = %QueenAbilityUI
 
 var current_player: int
 var current_throw: int
@@ -349,9 +350,44 @@ func use_ability() -> void:
 			)
 
 
-		GlobalNames.PIECE_TYPE.KNIGHT:
-			pass
 		GlobalNames.PIECE_TYPE.QUEEN:
+			var special_tiles: Array[Vector2i] = []
+
+			var ref_tile := selected_piece.position_on_board
+
+			for x in range(0, GlobalNames.BOARD_SIZE):
+				for y in range(0, GlobalNames.BOARD_SIZE):
+					if ref_tile.distance_to(Vector2i(x, y)) < Board.DISTANCES[current_throw - 2]:
+						special_tiles.push_back(Vector2i(x, y))
+
+			board.set_special_tiles(special_tiles)
+
+			var vals := {"ok": false}
+
+			var lambda := func(ok: bool) -> void:
+				vals.ok = ok
+
+			queen_ability_ui.confirmed_heal.connect(lambda)
+			queen_ability_ui.visible = true
+
+			await queen_ability_ui.confirmed_heal
+
+			queen_ability_ui.confirmed_heal.disconnect(lambda)
+
+			print("[GameScene.gd] Queen ability sequence over; Selected: ", vals.ok)
+
+			if vals.ok:
+				Network.send_use_ability_packet(
+				selected_piece,
+				{
+					"_placeholder": vals.ok
+				}
+			)
+			else:
+				board.set_special_tiles([])
+
+
+		GlobalNames.PIECE_TYPE.KNIGHT:
 			pass
 
 func resolve_used_ability(player_id: int, piece_id: int, ability_data: Dictionary) -> void:
@@ -388,6 +424,17 @@ func resolve_used_ability(player_id: int, piece_id: int, ability_data: Dictionar
 				i += 1
 			
 			move_piece(player_id, piece_id, ability_data.landing_tile)
+		
+		GlobalNames.PIECE_TYPE.QUEEN:
+			var i: int = 0
+			while i < ability_data.healed_pieces.size():
+				# damage_tile(ability_data.tiles[i], ability_data.new_hps[i])
+				var healed_piece: Piece = piece_parent.get_child(ability_data.healed_pieces[i])
+
+				healed_piece.heal(ability_data.heal_amount)
+
+				i += 1
+
 
 		_:
 			pass
