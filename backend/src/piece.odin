@@ -648,7 +648,7 @@ check_ability_eligibility :: proc(state: App_State, piece: Piece, throw: int) ->
 			return throw >= 3;
 
 		case .KNIGHT:
-			return false
+			return throw >= 5;
 
 		case .QUEEN:
 			return throw >= 5;

@@ -391,6 +391,39 @@ use_ability :: proc(state: ^App_State, data: Ability_Data) -> Used_Ability_Resul
 			}
 			result.ok = true;
 			return result;
+		
+		case Knight_Ability_Data:
+			// available_tiles := make([dynamic]v2i, 0);
+
+			// for x in 0..<BOARD_SIZE {
+			// 	for y in 0..<BOARD_SIZE {
+			// 		if state.board[y][x] == nil && distance(v2i{x, y}, piece.position) < BOARD_DISTANCES[state.current_throw - 2] {
+			// 			append(&available_tiles, v2i{x, y});
+			// 		}
+			// 	}
+			// }
+
+			if state.board[ability_data.tile.y][ability_data.tile.x] != nil {
+				return result;
+			}
+
+			if distance(ability_data.tile, piece.position) >= BOARD_DISTANCES[state.current_throw - 2] {
+				return result;
+			}
+
+			move_piece(state, Move_Piece_Data{
+				player_id = data.player_id,
+				piece_id = piece_id,
+				target_tile = ability_data.tile,
+			}, true)
+
+			piece.has_ability = false;
+
+			result.data = Knight_Ability_Result{
+				new_tile = ability_data.tile,
+			}
+			result.ok = true;
+			return result;
 
 	}
 
