@@ -208,11 +208,11 @@ func resolve_attack(player_id: int, piece_id: int, target_piece_id: int, new_hp:
 	# board_data.set_tile(attacking_piece.position_on_board, null)
 	# attacking_piece.set_position_on_board(landing_tile, board)
 	# board_data.set_tile(attacking_piece.position_on_board, attacking_piece)
-	move_piece(player_id, piece_id, landing_tile)
-
 	target_piece.set_hp(new_hp)
 	if target_piece.health <= 0:
 		board_data.set_tile(target_piece.position_on_board, null)
+
+	move_piece(player_id, piece_id, landing_tile)
 
 	selected_piece = null
 
@@ -297,6 +297,9 @@ func use_ability() -> void:
 
 			tile_select_ui.tile_clicked.disconnect(lamdba)
 
+			if !is_equal_approx(vals.direction.length(), 1.0):
+				return
+
 			print("[GameScene.gd] Rook ability sequence over; Selected: ", vals.direction)
 
 			Network.send_use_ability_packet(
@@ -341,6 +344,10 @@ func use_ability() -> void:
 			tile_select_ui.tile_clicked.disconnect(lambda)
 
 			print("[GameScene.gd] Bishop ability sequence over; Selected: ", vals.tile)
+
+			# TODO: check if tile is in special tiles
+			if !(vals.tile in special_tiles):
+				return
 
 			Network.send_use_ability_packet(
 				selected_piece,
@@ -388,7 +395,44 @@ func use_ability() -> void:
 
 
 		GlobalNames.PIECE_TYPE.KNIGHT:
-			pass
+			var special_tiles: Array[Vector2i] = []
+
+			var ref_tile := selected_piece.position_on_board
+
+			for x in range(0, GlobalNames.BOARD_SIZE):
+				for y in range(0, GlobalNames.BOARD_SIZE):
+					if ref_tile.distance_to(Vector2i(x, y)) < Board.DISTANCES[current_throw - 2] \
+						&& board_data.get_tile(Vector2i(x, y)) == null:
+						special_tiles.push_back(Vector2i(x, y))
+			
+			board.set_special_tiles(special_tiles)
+
+			var vals := {"tile": Vector2i.MAX}
+
+			var lambda := func(tile: Vector2i) -> void:
+				vals.tile = tile
+
+			tile_select_ui.tile_clicked.connect(lambda)
+			tile_select_ui.board = board
+			tile_select_ui.camera = %Camera
+			tile_select_ui.visible = true
+
+			await tile_select_ui.tile_clicked
+
+			tile_select_ui.tile_clicked.disconnect(lambda)
+
+			print("[GameScene.gd] Knight ability sequence over; Selected: ", vals.tile)
+
+			if !(vals.tile in special_tiles):
+				return
+
+			Network.send_use_ability_packet(
+				selected_piece,
+				{
+					"selected_tile": vals.tile
+				}
+			)
+
 
 func resolve_used_ability(player_id: int, piece_id: int, ability_data: Dictionary) -> void:
 	var piece_parent: Node2D = null
@@ -407,9 +451,10 @@ func resolve_used_ability(player_id: int, piece_id: int, ability_data: Dictionar
 		
 		
 		GlobalNames.PIECE_TYPE.BISHOP:
-			board_data.set_tile(ability_data.new_position, piece)
-			board_data.set_tile(piece.position_on_board, null)
-			piece.set_position_on_board(ability_data.new_position, board)
+			# board_data.set_tile(ability_data.new_position, piece)
+			# board_data.set_tile(piece.position_on_board, null)
+			# piece.set_position_on_board(ability_data.new_position, board)
+			move_piece(player_id, piece_id, ability_data.new_position)
 		
 
 		GlobalNames.PIECE_TYPE.ROOK:
@@ -434,6 +479,12 @@ func resolve_used_ability(player_id: int, piece_id: int, ability_data: Dictionar
 				healed_piece.heal(ability_data.heal_amount)
 
 				i += 1
+
+		GlobalNames.PIECE_TYPE.KNIGHT:
+			# board_data.set_tile(ability_data.new_position, piece)
+			# board_data.set_tile(piece.position_on_board, null)
+			# piece.set_position_on_board(ability_data.new_position, board)
+			move_piece(player_id, piece_id, ability_data.new_position)
 
 
 		_:

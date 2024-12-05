@@ -266,7 +266,10 @@ func send_use_ability_packet(piece: Piece, ability_data: Dictionary) -> void:
 			packet_data.encode_u8(12, ability_data.selected_tile.y)
 			
 		GlobalNames.PIECE_TYPE.KNIGHT:
-			pass
+			packet_data.resize(packet_data.size() + 2)
+			packet_data.encode_u8(11, ability_data.selected_tile.x)
+			packet_data.encode_u8(12, ability_data.selected_tile.y)
+
 		GlobalNames.PIECE_TYPE.QUEEN:
 			# no extra data needed
 			pass
@@ -486,6 +489,18 @@ func decode_packet(packet_type: SERVER_PACKET_TYPE, data: PackedByteArray) -> vo
 						}
 					)
 
+				GlobalNames.PIECE_TYPE.KNIGHT:
+					var new_position: Vector2i
+
+					new_position.x = data.decode_u8(10)
+					new_position.y = data.decode_u8(11)
+
+					call_deferred("emit_signal", "ability_used", 
+						player_id, piece_id,
+						{
+							"new_position": new_position,
+						}
+					)
 
 				_:
 					pass
