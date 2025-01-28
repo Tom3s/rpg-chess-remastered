@@ -11,6 +11,7 @@ var piece_type: GlobalNames.PIECE_TYPE = GlobalNames.PIECE_TYPE.NONE:
 		piece_type = newType
 
 var position_on_board: Vector2i
+var target_positions: PackedVector2Array
 
 var id: int = -1
 var owner_player: int
@@ -28,7 +29,7 @@ func init_piece(
 	init_owner: int,
 ) -> void:
 	piece_type = type
-	set_position_on_board(pos, board)
+	set_position_on_board_no_anim(pos, board)
 	id = init_id
 	owner_player = init_owner
 
@@ -61,9 +62,40 @@ func init_stats() -> void:
 func _ready() -> void:
 	%Sprite.texture = GlobalNames.piece_textures[piece_type]
 
+const EPSILON = 0.01
+
+@export
+var MOVE_SPEED: float = 15
+
+func _process(delta: float) -> void:
+	if !target_positions.is_empty():
+		var e_multiplier := 1.0
+		var s_multiplier := 1.0
+		if target_positions.size() > 1:
+			e_multiplier = 1000.0
+			s_multiplier = 2.4
+
+		var target_global_pos := target_positions[0]
+		global_position = lerp(global_position, target_global_pos, MOVE_SPEED * delta * s_multiplier)
+
+
+		if (target_global_pos - global_position).length() <= EPSILON * e_multiplier:
+			target_positions.remove_at(0)
+
+
 func set_position_on_board(newPos: Vector2i, board: Board) -> void:
 	position_on_board = newPos
+	# target_global_pos = board.index_to_position(newPos)
+	target_positions.push_back(board.index_to_position(newPos))
+
+
+
+func set_position_on_board_no_anim(newPos: Vector2i, board: Board) -> void:
+	position_on_board = newPos
 	global_position = board.index_to_position(newPos)
+	# target_global_pos = global_position
+	target_positions.push_back(board.index_to_position(newPos))
+
 
 func set_hp(new_hp: int) -> void:
 	print("[Piece.gd] Setting hp of ", id, " to ", new_hp)

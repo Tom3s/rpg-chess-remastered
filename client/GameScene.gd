@@ -208,6 +208,9 @@ func resolve_attack(player_id: int, piece_id: int, target_piece_id: int, new_hp:
 	# board_data.set_tile(attacking_piece.position_on_board, null)
 	# attacking_piece.set_position_on_board(landing_tile, board)
 	# board_data.set_tile(attacking_piece.position_on_board, attacking_piece)
+
+	attacking_piece.target_positions.push_back(board.index_to_position(target_piece.position_on_board))
+
 	target_piece.set_hp(new_hp)
 	if target_piece.health <= 0:
 		board_data.set_tile(target_piece.position_on_board, null)

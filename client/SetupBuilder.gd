@@ -190,8 +190,9 @@ func randomize_board() -> void:
 
 		var piece: Piece = piece_scene.instantiate()
 		pieces.add_child(piece)
-		piece.position_on_board = tile
-		piece.global_position = board.index_to_position(tile)
+		# piece.position_on_board = tile
+		# piece.global_position = board.index_to_position(tile)
+		piece.set_position_on_board_no_anim(tile, board)
 		piece.piece_type = type
 		piece_buttons.get_child(type).available -= 1
 	
