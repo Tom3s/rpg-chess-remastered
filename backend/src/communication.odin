@@ -511,7 +511,7 @@ decode_use_ability :: proc(state: ^App_State, data: []byte) -> Ability_Data {
 
 	piece := player.pieces[piece_id];
 
-	switch (piece.type) {
+	switch piece.type {
 		case .PAWN:
 			selected_type := cast(PIECE_TYPE) data[9];
 

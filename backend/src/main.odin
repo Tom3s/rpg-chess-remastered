@@ -386,6 +386,8 @@ use_ability :: proc(state: ^App_State, data: Ability_Data) -> Used_Ability_Resul
 				}
 			}
 
+			piece.has_ability = false;
+
 			result.data = Queen_Ability_Result{
 				healed_pieces = healed_pieces[:],
 			}
